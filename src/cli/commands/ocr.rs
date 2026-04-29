@@ -94,7 +94,7 @@ fn ocr_get(db_path: &Path, args: &OcrGetArgs) -> Result<()> {
 
 fn ocr_clear(db_path: &Path, args: &OcrClearArgs) -> Result<()> {
     let format = require_text_or_json(args.output.resolved()?, "ocr clear")?;
-    let mut db = open_or_init_db(db_path)?;
+    let mut db = open_existing_db(db_path)?;
     if !db.clear_ocr_result(&args.raw_sha256)? {
         return Err(not_found_error(format!(
             "no OCR result for raw hash {}",

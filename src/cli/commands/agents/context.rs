@@ -358,7 +358,7 @@ fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
                 "app settings clear",
                 "app update-check clear",
             ],
-            stable_formats: &["json", "jsonl", "toon"],
+            stable_formats: &["json", "text", "md", "human"],
             action_parity_doc: "docs/action-parity.md",
         },
     })

@@ -74,6 +74,10 @@ versioning where practical.
   and capability metadata when macOS service probes are unavailable.
 - Fixed app preference reads on non-macOS hosts so read-only app state commands
   report defaults instead of failing on a missing `defaults` command.
+- Fixed `ocr clear` so it targets existing archives instead of creating a
+  missing database path while clearing OCR state.
+- Fixed the `clipmem agents context` capability map so it advertises only the
+  output formats that the context command accepts.
 - Fixed best-effort macOS app refresh notifications so detached `notifyutil`
   calls are reaped after signaling the menu bar app.
 - Fixed open menu bar app preference rehydration after external `clipmem app`

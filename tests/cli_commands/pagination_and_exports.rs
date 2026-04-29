@@ -482,11 +482,22 @@ fn ocr_read_commands_do_not_initialize_missing_database() {
         "--format",
         "json",
     ]);
+    let clear = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "clear",
+        "abc123",
+        "--format",
+        "json",
+    ]);
 
     assert!(!candidates.status.success());
     assert!(!get.status.success());
+    assert!(!clear.status.success());
     assert!(stderr_text(&candidates).contains("Run `clipmem setup`"));
     assert!(stderr_text(&get).contains("Run `clipmem setup`"));
+    assert!(stderr_text(&clear).contains("Run `clipmem setup`"));
     assert!(!path.exists());
 }
 
