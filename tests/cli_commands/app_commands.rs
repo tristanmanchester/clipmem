@@ -35,6 +35,34 @@ fn app_settings_show_reports_defaults() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn app_settings_show_uses_defaults_without_macos_defaults_command() -> Result<()> {
+    let path = temp_db_path("app-settings-non-macos-defaults");
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "app",
+        "settings",
+        "show",
+        "--format",
+        "json",
+    ]);
+    let payload: Value =
+        serde_json::from_slice(&output.stdout).expect("app settings JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert!(payload["binary_path_override"].is_null());
+    assert!(payload["database_path_override"].is_null());
+    assert_eq!(payload["default_recent_hours"].as_u64(), Some(24));
+    assert_eq!(payload["default_query_mode"].as_str(), Some("recent"));
+    assert_eq!(payload["hotkey_enabled"].as_bool(), Some(true));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
 #[test]
 fn app_settings_set_and_clear_preferences_bump_revision() -> Result<()> {
     let path = temp_db_path("app-settings-set-clear");

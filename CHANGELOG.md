@@ -72,6 +72,8 @@ versioning where practical.
 - Fixed `clipmem agents context --format json` on non-macOS test and
   integration environments so it still returns database, settings, revision,
   and capability metadata when macOS service probes are unavailable.
+- Fixed app preference reads on non-macOS hosts so read-only app state commands
+  report defaults instead of failing on a missing `defaults` command.
 - Fixed best-effort macOS app refresh notifications so detached `notifyutil`
   calls are reaped after signaling the menu bar app.
 - Fixed open menu bar app preference rehydration after external `clipmem app`

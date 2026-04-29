@@ -445,6 +445,9 @@ fn read_named_preference(key: &str) -> Result<Option<Value>> {
         let store = read_override_store(&path)?;
         return Ok(store.get(key).cloned());
     }
+    if !cfg!(target_os = "macos") {
+        return Ok(None);
+    }
 
     let output = Command::new("defaults")
         .args(["read", APP_DOMAIN, key])
@@ -477,6 +480,7 @@ fn set_named_preference(key: &str, value: Value) -> Result<()> {
         store.insert(key.to_string(), value);
         return write_override_store(&path, &store);
     }
+    ensure_macos_app_preference_store()?;
 
     let mut command = Command::new("defaults");
     command.args(["write", APP_DOMAIN, key]);
@@ -509,6 +513,7 @@ fn clear_named_preference(key: &str) -> Result<()> {
         store.remove(key);
         return write_override_store(&path, &store);
     }
+    ensure_macos_app_preference_store()?;
 
     let output = Command::new("defaults")
         .args(["delete", APP_DOMAIN, key])
@@ -522,6 +527,14 @@ fn clear_named_preference(key: &str) -> Result<()> {
         return Ok(());
     }
     Err(anyhow!("delete app preference failed: {}", stderr.trim()))
+}
+
+fn ensure_macos_app_preference_store() -> Result<()> {
+    if cfg!(target_os = "macos") {
+        Ok(())
+    } else {
+        bail!("app preference mutations require macOS or CLIPMEM_APP_SETTINGS_STORE")
+    }
 }
 
 fn run_defaults(mut command: Command, label: &str) -> Result<()> {
