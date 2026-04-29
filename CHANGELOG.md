@@ -34,6 +34,8 @@ versioning where practical.
   candidates without running batch workflows.
 - Added `clipmem service providers --format json` for read-only service provider
   discovery without starting, stopping, or reinstalling capture.
+- Added `clipmem service revision --format json` for lightweight archive
+  revision polling without probing service providers.
 - Added `clipmem settings reset` plus `clipmem ocr get` and `clipmem ocr clear`
   so capture settings and per-hash OCR results have explicit agent-accessible
   reset/read/delete operations.
@@ -66,6 +68,20 @@ versioning where practical.
 - Fixed open menu bar app preference rehydration after external `clipmem app`
   mutations so database/binary overrides, launch-at-login, hotkey state, and
   cached update-check state refresh without restarting the app.
+- Fixed external agent and CLI mutations so open History and Quick Recall
+  windows refresh search, recall, recent, timeline, OCR, storage, and app
+  default-mode/default-hours state from the durable revision ledger.
+- Fixed `clipmem app` preference mutations to update both the invocation
+  database and the configured app database override, so an already-open app can
+  observe changes even when it uses a different archive path.
+- Fixed `clipmem app update-check run --format json` to store integer
+  timestamps so macOS defaults writes remain compatible with the app reader.
+- Fixed read-only OCR inspection commands so `ocr candidates` and `ocr get` fail
+  on missing archives instead of creating an empty database.
+- Fixed `storage image-candidates` to inspect optimization metadata without
+  loading stored image blobs.
+- Fixed app refresh notifications so CLI mutations do not block on
+  `notifyutil`.
 - Fixed menu bar Markdown rendering for multiline text so headings and body text
   keep their line breaks in recent rows and History instead of being flattened
   into one line before rendering.

@@ -13,6 +13,10 @@ struct CommandConstructionTests {
         #expect(command.arguments.contains("--cursor"))
     }
 
+    @Test func serviceRevisionRequestsJSON() {
+        #expect(ClipmemCommand.serviceRevision().arguments == ["service", "revision", "--format", "json"])
+    }
+
     @Test func actionCommandsRequestJSON() {
         #expect(ClipmemCommand.restore(snapshotID: 42).arguments == ["restore", "42", "--format", "json"])
         #expect(ClipmemCommand.forget(snapshotID: 42).arguments == ["forget", "42", "--format", "json"])

@@ -8,6 +8,6 @@ pub(in crate::cli) fn notify_app_refresh() {
         }
         let _ = std::process::Command::new("/usr/bin/notifyutil")
             .args(["-p", APP_REFRESH_NOTIFICATION])
-            .status();
+            .spawn();
     }
 }

@@ -12,8 +12,9 @@ use super::help::{
     HERMES_UNINSTALL_AFTER_HELP, OCR_AFTER_HELP, OPENCLAW_DOCTOR_AFTER_HELP,
     OPENCLAW_INSTALL_AFTER_HELP, OPENCLAW_PRINT_AFTER_HELP, OPENCLAW_UNINSTALL_AFTER_HELP,
     PURGE_AFTER_HELP, RECALL_AFTER_HELP, RECENT_AFTER_HELP, RESTORE_AFTER_HELP, ROOT_AFTER_HELP,
-    SEARCH_AFTER_HELP, SERVICE_AFTER_HELP, SERVICE_STATUS_AFTER_HELP, SETTINGS_AFTER_HELP,
-    SETUP_AFTER_HELP, STATS_AFTER_HELP, STORAGE_AFTER_HELP, TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
+    SEARCH_AFTER_HELP, SERVICE_AFTER_HELP, SERVICE_REVISION_AFTER_HELP, SERVICE_STATUS_AFTER_HELP,
+    SETTINGS_AFTER_HELP, SETUP_AFTER_HELP, STATS_AFTER_HELP, STORAGE_AFTER_HELP,
+    TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
 };
 use super::parsing::{
     parse_bounded_limit, parse_duration_value, parse_nonnegative_bytes, parse_normalized_score,
@@ -149,6 +150,8 @@ pub(super) struct ServiceArgs {
 pub(super) enum ServiceCommand {
     /// List service providers and their current state without changing them.
     Providers(ServiceProvidersArgs),
+    /// Print the current archive revision without probing service providers.
+    Revision(ServiceRevisionArgs),
     /// Start background capture using the preferred service provider.
     Start,
     /// Stop background capture without uninstalling the service definition when possible.
@@ -161,6 +164,13 @@ pub(super) enum ServiceCommand {
 
 #[derive(Debug, Args)]
 pub(super) struct ServiceProvidersArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+#[command(after_help = SERVICE_REVISION_AFTER_HELP)]
+pub(super) struct ServiceRevisionArgs {
     #[command(flatten)]
     pub(super) output: OutputArgs,
 }

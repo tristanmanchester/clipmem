@@ -462,6 +462,35 @@ fn ocr_candidates_lists_pending_hashes_without_processing() -> Result<()> {
 }
 
 #[test]
+fn ocr_read_commands_do_not_initialize_missing_database() {
+    let path = temp_db_path("ocr-missing-read");
+
+    let candidates = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "candidates",
+        "--format",
+        "json",
+    ]);
+    let get = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "get",
+        "abc123",
+        "--format",
+        "json",
+    ]);
+
+    assert!(!candidates.status.success());
+    assert!(!get.status.success());
+    assert!(stderr_text(&candidates).contains("Run `clipmem setup`"));
+    assert!(stderr_text(&get).contains("Run `clipmem setup`"));
+    assert!(!path.exists());
+}
+
+#[test]
 fn export_command_writes_raw_representation_bytes() -> Result<()> {
     let path = temp_db_path("export-bytes");
     let output_path = temp_artifact_path("export-bytes", ".bin");

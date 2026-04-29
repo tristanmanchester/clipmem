@@ -322,8 +322,66 @@ fn app_update_check_run_refreshes_cached_state_and_bumps_revision() -> Result<()
     assert_eq!(payload["is_update_available"].as_bool(), Some(true));
     assert!(payload["last_checked_at_unix"].as_f64().is_some());
     assert_eq!(db.archive_revision()?.app_preferences_revision(), 1);
+    let store: Value = serde_json::from_slice(
+        &fs::read(&store_path).expect("app settings store should exist after update check"),
+    )
+    .expect("app settings store should parse");
+    assert!(store["lastUpdateCheckAt"].as_u64().is_some());
 
     cleanup_db(&path);
+    cleanup_temp_artifact(&store_path);
+    Ok(())
+}
+
+#[test]
+fn app_preference_mutations_bump_existing_database_override_revision() -> Result<()> {
+    let invocation_path = temp_db_path("app-pref-invocation-db");
+    let override_path = temp_db_path("app-pref-override-db");
+    let store_path = temp_artifact_path("app-pref-override-store", ".json");
+    seed_database(&override_path, &[text_snapshot(1, "override database")])?;
+    fs::write(
+        &store_path,
+        format!(
+            r#"{{
+  "databasePathOverride": "{}"
+}}"#,
+            override_path.display()
+        ),
+    )?;
+    let envs = vec![(
+        "CLIPMEM_APP_SETTINGS_STORE".to_string(),
+        store_path.display().to_string(),
+    )];
+
+    let output = run_cli_with_owned_env(
+        &[
+            "--db",
+            invocation_path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "settings",
+            "set",
+            "default-recent-hours",
+            "48",
+            "--format",
+            "json",
+        ],
+        &envs,
+    );
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    let invocation_db = Database::open_existing(&invocation_path)?;
+    let override_db = Database::open_existing(&override_path)?;
+    assert_eq!(
+        invocation_db.archive_revision()?.app_preferences_revision(),
+        1
+    );
+    assert_eq!(
+        override_db.archive_revision()?.app_preferences_revision(),
+        1
+    );
+
+    cleanup_db(&invocation_path);
+    cleanup_db(&override_path);
     cleanup_temp_artifact(&store_path);
     Ok(())
 }

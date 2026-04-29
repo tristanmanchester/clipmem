@@ -7,8 +7,8 @@ use super::super::human::render_service_status_human;
 use super::super::presentation::emit_json_or_text;
 use super::super::schema::{
     AgentsArgs, AgentsCommand, AgentsContextArgs, Command, HermesArgs, HermesCommand, OpenClawArgs,
-    OpenClawCommand, ServiceArgs, ServiceCommand, ServiceProvidersArgs, ServiceStatusArgs,
-    SetupArgs,
+    OpenClawCommand, ServiceArgs, ServiceCommand, ServiceProvidersArgs, ServiceRevisionArgs,
+    ServiceStatusArgs, SetupArgs,
 };
 use super::super::service as service_api;
 use super::super::service::ServiceProviderStatus;
@@ -66,6 +66,7 @@ pub(in crate::cli) fn setup(db_path: &Path, _args: &SetupArgs) -> Result<()> {
 pub(in crate::cli) fn service(db_path: &Path, args: &ServiceArgs) -> Result<()> {
     match &args.command {
         ServiceCommand::Providers(args) => service_providers(db_path, args),
+        ServiceCommand::Revision(args) => service_revision(db_path, args),
         ServiceCommand::Start => {
             let report = service_api::start(db_path)?;
             print!("{}", render_service_action_text(&report));
@@ -83,6 +84,29 @@ pub(in crate::cli) fn service(db_path: &Path, args: &ServiceArgs) -> Result<()> 
             Ok(())
         }
     }
+}
+
+pub(in crate::cli) fn service_revision(db_path: &Path, args: &ServiceRevisionArgs) -> Result<()> {
+    let format = require_text_or_json(args.output.resolved()?, "service revision")?;
+    let db = super::runtime::open_existing_db(db_path)?;
+    let revision = db.archive_revision()?;
+    emit_json_or_text(
+        matches!(format, super::super::formats::OutputFormat::Json),
+        &revision,
+        |revision| {
+            format!(
+                "revision={} archive_content_revision={} settings_revision={} ocr_revision={} storage_revision={} service_revision={} app_preferences_revision={} last_change_kind={}\n",
+                revision.revision(),
+                revision.archive_content_revision(),
+                revision.settings_revision(),
+                revision.ocr_revision(),
+                revision.storage_revision(),
+                revision.service_revision(),
+                revision.app_preferences_revision(),
+                revision.last_change_kind()
+            )
+        },
+    )
 }
 
 #[derive(Debug, Serialize)]

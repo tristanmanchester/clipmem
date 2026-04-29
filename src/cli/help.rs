@@ -3,6 +3,7 @@ Examples:
   clipmem setup
   clipmem service status
   clipmem service providers --format json
+  clipmem service revision --format json
   clipmem app settings show --format json
   clipmem app update-check run --format json
   clipmem recall \"what was that shell command?\"
@@ -257,12 +258,14 @@ Examples:
   clipmem service start
   clipmem service status
   clipmem service status --json
+  clipmem service revision --format json
   clipmem service stop
   clipmem service uninstall
 
 Notes:
   - Homebrew installs prefer `brew services`; Cargo and manual installs use a direct LaunchAgent.
-  - `status` is informational and reports freshness, provider state, and any setup conflicts.";
+  - `status` is informational and reports freshness, provider state, and any setup conflicts.
+  - `revision` prints the archive revision ledger without probing service providers.";
 
 pub(super) const SERVICE_STATUS_AFTER_HELP: &str = "\
 Examples:
@@ -274,6 +277,17 @@ Notes:
   - Text output is intended for humans.
   - Human output is polished for interactive terminals.
   - `--json` is the stable machine-readable form used by packaged skill health checks.";
+
+pub(super) const SERVICE_REVISION_AFTER_HELP: &str = "\
+Examples:
+  clipmem service revision
+  clipmem service revision --format json
+  clipmem service revision --json
+
+Notes:
+  - Reports the durable archive revision counters from the active database.
+  - Does not probe Homebrew, LaunchAgent, or other service providers.
+  - Use this for lightweight polling when only change detection is needed.";
 
 pub(super) const OPENCLAW_INSTALL_AFTER_HELP: &str = "\
 Examples:

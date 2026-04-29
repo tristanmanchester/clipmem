@@ -218,6 +218,7 @@ const CLI_COMMAND_KEYWORDS: &[&str] = &[
     "ocr clear",
     "storage image-candidates",
     "service providers",
+    "service revision",
     "settings reset",
     // formats
     "json",

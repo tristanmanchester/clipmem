@@ -136,12 +136,14 @@ Always pick the narrowest command that answers the question.
    apps when the user explicitly asks to restore defaults.
 9. **`clipmem service providers --format json`** - inspect service provider
    state without starting or stopping capture.
-10. **`clipmem app settings`, `clipmem app launch-at-login`,
+10. **`clipmem service revision --format json`** - inspect archive revision
+   counters without probing service providers.
+11. **`clipmem app settings`, `clipmem app launch-at-login`,
    `clipmem app update-check run`, or `clipmem app quit` with
    `--format json`** - inspect or change menu bar app preferences and app-owned
    state when the user asks about app defaults, update checks, or quitting the
    app.
-11. **`clipmem agents context --format json`** - compact health, settings, app
+12. **`clipmem agents context --format json`** - compact health, settings, app
    state, recent activity, revision, stats, privacy, and capability context
    before multi-step work.
 
@@ -178,8 +180,9 @@ The full flag reference, JSON envelope, and kind values live in
 
 ## Output format rule
 
-- `--format json` - single structured object. Use whenever you will parse the
-  response. Stable within `schema_version: 2`.
+- `--format json` — structured output. Retrieval envelopes are stable within
+  `schema_version: 2`; management and inspection commands use
+  command-specific JSON shapes, so parse documented keys directly.
 - `--format toon` - flat, token-efficient list. Prefer for high-cardinality
   enumeration (`timeline`, `search`, `recent`, `recall`) when you only need the
   top fields. Note: `get` does **not** support `toon`.
@@ -189,7 +192,7 @@ The full flag reference, JSON envelope, and kind values live in
   these.
 
 `--json` is an alias for `--format json` on `search`, `recent`, `timeline`,
-`get`, `capture-once`, and `doctor`.
+`get`, `service revision`, `capture-once`, and `doctor`.
 
 ## Reading the response
 

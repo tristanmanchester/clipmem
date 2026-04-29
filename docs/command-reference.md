@@ -44,6 +44,7 @@ subcommand. For conceptual explanations and usage guidance, see
 | `service stop` | — | — | Stop background capture |
 | `service status` | `text` | — | Report watcher state and freshness |
 | `service providers` | `text` | — | Inspect provider availability without mutation |
+| `service revision` | `text` | — | Print archive revision counters without probing service providers |
 | `service uninstall` | — | — | Remove managed service definition |
 | `watch` | — | — | Continuous foreground polling |
 | `capture-once` | — | — | Single clipboard capture |
@@ -432,6 +433,24 @@ starting, stopping, or reinstalling capture.
 ```bash
 clipmem service providers
 clipmem service providers --format json
+```
+
+### `clipmem service revision`
+
+Print the archive revision ledger from the active database without probing
+Homebrew, LaunchAgent, or other service providers. This is the lightweight
+change-detection command used by app polling when it only needs revision
+counters.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+
+```bash
+clipmem service revision
+clipmem service revision --format json
+clipmem service revision --json
 ```
 
 ### `clipmem service uninstall`

@@ -211,7 +211,7 @@ clipmem is designed for script and agent consumption:
 - stderr contains diagnostics only
 - No interactive prompts anywhere in the CLI
 - List commands use bounded defaults and opaque cursor pagination
-- `--format json` output is stable within `schema_version: 2`
+- Retrieval `--format json` envelopes are stable within `schema_version: 2`; management and inspection commands may use command-specific JSON shapes and document their stable keys separately.
 
 ### Exit codes
 

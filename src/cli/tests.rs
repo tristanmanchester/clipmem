@@ -54,6 +54,21 @@ fn service_providers_parses_json_output() {
 }
 
 #[test]
+fn service_revision_parses_json_output() {
+    let cli = Cli::parse_from(["clipmem", "service", "revision", "--format", "json"]);
+
+    match cli.command {
+        Command::Service(args) => match args.command {
+            ServiceCommand::Revision(args) => {
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected service revision command, got {other:?}"),
+        },
+        other => panic!("expected service command, got {other:?}"),
+    }
+}
+
+#[test]
 fn agents_openclaw_commands_parse_install_and_doctor_flags() {
     let install_cli = Cli::parse_from([
         "clipmem",

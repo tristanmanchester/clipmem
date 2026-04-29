@@ -73,7 +73,7 @@ documented app-owned command bridge.
 | Read/write launch-at-login state | `clipmem app launch-at-login show|set|clear --format json` bridge | Covered |
 | Check app update state | `clipmem app update-check show|run|clear --format json` | Covered |
 | Quit the menu bar app | `clipmem app quit --format json` | Covered |
-| Observe external agent mutations in open UI | `clipmem service status --json` revision signal, app polling, best-effort Darwin notifications, and `clipmem agents context --format json` | Covered |
+| Observe external agent mutations in open UI | `clipmem service revision --format json` revision signal, app polling, best-effort Darwin notifications, and `clipmem agents context --format json` | Covered |
 
 ## Primitive command taxonomy
 
@@ -88,7 +88,7 @@ judgment.
 | Capture policy | `settings show`, `settings ignore list` | `settings pause`, `settings api-key-filter`, `settings ocr`, `settings retention`, `settings reset`, `settings ignore add|remove` |
 | OCR | `ocr status`, `ocr candidates`, `ocr get` | `ocr clear`, `ocr run` |
 | Storage | `storage image-candidates`, `storage compact --dry-run`, `storage optimize-images --dry-run` | `storage compact`, `storage optimize-images` |
-| Service | `service status`, `service providers`, `doctor` | `setup`, `capture-once`, `service start|stop|uninstall` |
+| Service | `service status`, `service providers`, `service revision`, `doctor` | `setup`, `capture-once`, `service start|stop|uninstall` |
 | Menu bar app | `app settings show`, `app launch-at-login show`, `app update-check show`, `app update-check run`, `app quit` | `app settings set|clear`, `app launch-at-login set|clear`, `app update-check clear` |
 | Agent integration | `agents context`, `agents openclaw|hermes doctor`, `agents openclaw|hermes print-skill` | `agents openclaw|hermes install-skill|uninstall-skill` |
 
@@ -100,7 +100,7 @@ efficiency, but they are not the proof of primitive coverage:
   with `search`, `recent`, `timeline`, or `get`.
 - `setup` composes database initialization, one capture, and service
   startup. Agents can still inspect the resulting state with `service
-  status`, `settings show`, and `agents context`.
+  status`, `service revision`, `settings show`, and `agents context`.
 - `purge`, `ocr run`, and `storage optimize-images` are bounded batch
   workflows with dry-run or candidate inspection commands where a preview
   is meaningful.

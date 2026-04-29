@@ -98,18 +98,7 @@ impl Database {
         &self,
         limit: usize,
     ) -> Result<Vec<ImageOptimizationCandidateSummary>> {
-        load_image_optimization_candidates(&self.conn, limit)?
-            .into_iter()
-            .map(|candidate| {
-                Ok(ImageOptimizationCandidateSummary::new(
-                    candidate.snapshot_id,
-                    candidate.item_index,
-                    candidate.uti,
-                    candidate.byte_len,
-                    candidate.raw_sha256,
-                ))
-            })
-            .collect()
+        load_image_optimization_candidate_summaries(&self.conn, limit)
     }
 
     fn process_image_optimization_candidates(
@@ -320,6 +309,38 @@ pub(in crate::db) fn load_image_optimization_candidates(
         })
         .context("execute image optimization candidate query")?;
     collect_rows(rows).context("collect image optimization candidates")
+}
+
+fn load_image_optimization_candidate_summaries(
+    conn: &rusqlite::Connection,
+    limit: usize,
+) -> Result<Vec<ImageOptimizationCandidateSummary>> {
+    let limit = usize_to_i64(clamp_result_limit(limit))?;
+    let mut stmt = conn
+        .prepare(
+            r"
+                SELECT snapshot_id, item_index, uti, byte_len, raw_sha256
+                FROM item_representations
+                WHERE kind = 'image'
+                  AND image_compression_status = 'uncompressed'
+                  AND length(blob_value) > 0
+                ORDER BY byte_len DESC, snapshot_id ASC, item_index ASC, uti ASC
+                LIMIT ?1
+            ",
+        )
+        .context("prepare image optimization candidate summary query")?;
+    let rows = stmt
+        .query_map([limit], |row| {
+            Ok(ImageOptimizationCandidateSummary::new(
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row_usize(row, 3)?,
+                row.get(4)?,
+            ))
+        })
+        .context("execute image optimization candidate summary query")?;
+    collect_rows(rows).context("collect image optimization candidate summaries")
 }
 
 pub(in crate::db) fn database_path_is_file_backed(path: &Path) -> bool {

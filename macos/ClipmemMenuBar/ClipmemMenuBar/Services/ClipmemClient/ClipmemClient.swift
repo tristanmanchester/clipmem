@@ -80,7 +80,11 @@ struct ClipmemClient: Sendable {
     }
 
     func serviceStatus() async throws -> ServiceStatusReport {
-        try await decode(ServiceStatusReport.self, from: .serviceStatus())
+        try await decode(ServiceStatusReport.self, from: .serviceStatus(), timeout: .seconds(8))
+    }
+
+    func serviceRevision() async throws -> ArchiveRevision {
+        try await decode(ArchiveRevision.self, from: .serviceRevision(), timeout: .seconds(4))
     }
 
     func doctor() async throws -> DoctorReport {
@@ -172,8 +176,8 @@ struct ClipmemClient: Sendable {
         BinaryResolver(userOverride: configuration.binaryOverride).candidates()
     }
 
-    private func decode<T: Decodable>(_ type: T.Type, from command: ClipmemCommand) async throws -> T {
-        let result = try await run(command)
+    private func decode<T: Decodable>(_ type: T.Type, from command: ClipmemCommand, timeout: Duration? = nil) async throws -> T {
+        let result = try await run(command, timeout: timeout)
         do {
             return try Self.decoder.decode(T.self, from: result.stdout)
         } catch {
@@ -181,14 +185,14 @@ struct ClipmemClient: Sendable {
         }
     }
 
-    private func run(_ command: ClipmemCommand) async throws -> CommandResult {
+    private func run(_ command: ClipmemCommand, timeout: Duration? = nil) async throws -> CommandResult {
         let resolver = BinaryResolver(userOverride: configuration.binaryOverride)
         guard let binary = resolver.resolve() else {
             throw ClipmemClientError.binaryNotFound(resolver.candidates())
         }
         let arguments = command.withDatabase(configuration.databaseOverride).arguments
         AppLoggers.commands.info("Running clipmem command: \(arguments.first ?? "unknown", privacy: .public)")
-        let result = try await runner.run(executable: binary, arguments: arguments)
+        let result = try await runner.run(executable: binary, arguments: arguments, timeout: timeout)
         if Task.isCancelled {
             throw CancellationError()
         }

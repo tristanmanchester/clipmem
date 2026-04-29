@@ -14,7 +14,7 @@ use crate::cli::schema::{
 
 use super::mutation_support::require_text_or_json;
 use super::notify::notify_app_refresh;
-use super::runtime::open_or_init_db;
+use super::runtime::{open_existing_db, open_or_init_db};
 
 pub(in crate::cli) fn ocr(db_path: &Path, args: &OcrArgs) -> Result<()> {
     match &args.command {
@@ -64,7 +64,7 @@ fn ocr_run(db_path: &Path, args: &OcrRunArgs) -> Result<()> {
 
 fn ocr_candidates(db_path: &Path, args: &OcrCandidatesArgs) -> Result<()> {
     let format = require_text_or_json(args.output.resolved()?, "ocr candidates")?;
-    let db = open_or_init_db(db_path)?;
+    let db = open_existing_db(db_path)?;
     let candidates = db.ocr_candidate_summaries(args.limit, args.snapshot)?;
     match format {
         OutputFormat::Json => {
@@ -80,7 +80,7 @@ fn ocr_candidates(db_path: &Path, args: &OcrCandidatesArgs) -> Result<()> {
 
 fn ocr_get(db_path: &Path, args: &OcrGetArgs) -> Result<()> {
     let format = require_text_or_json(args.output.resolved()?, "ocr get")?;
-    let db = open_or_init_db(db_path)?;
+    let db = open_existing_db(db_path)?;
     let result = db.ocr_result(&args.raw_sha256)?.ok_or_else(|| {
         not_found_error(format!("no OCR result for raw hash {}", args.raw_sha256))
     })?;

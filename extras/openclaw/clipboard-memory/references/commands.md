@@ -21,17 +21,18 @@ Pick the narrowest command that answers the question. Always pass `--format json
 11. `clipmem storage image-candidates --format json` — inspect image rows eligible for optimization without rewriting bytes.
 12. `clipmem storage optimize-images [--dry-run] [--no-compact] [--limit N] [--format json|--progress jsonl]` — convert eligible stored images to lossless WebP and compact by default.
 13. `clipmem service providers --format json` — inspect service provider availability without starting or stopping capture.
-14. `clipmem settings show --format json` — inspect persistent capture policy.
-15. `clipmem app settings show --format json` — inspect menu bar app preferences.
-16. `clipmem app settings set KEY VALUE --format json` / `clear KEY --format json` — change app-local preferences and bump app preference revision.
-17. `clipmem app launch-at-login show|set|clear --format json` — inspect or change the app-owned launch-at-login preference bridge.
-18. `clipmem app update-check show|run|clear --format json` — inspect, run, or clear app update-check state.
-19. `clipmem app quit --format json` — request the menu bar app to quit.
-20. `clipmem agents context --format json` — one-call agent context: generated_at, service health, settings, app state, recent activity metadata, revision, stats, privacy guidance, and capability summary.
-21. `clipmem ocr status --format json` — inspect local OCR queue and result counts.
-22. `clipmem ocr candidates --format json` — inspect pending OCR candidates without running OCR.
-23. `clipmem ocr get <raw-sha256> --format json` / `clear <raw-sha256> --format json` — inspect or clear one OCR result.
-24. `clipmem ocr run [--limit N] [--snapshot ID]` — backfill OCR for image snapshots.
+14. `clipmem service revision --format json` — read archive revision counters without probing service providers.
+15. `clipmem settings show --format json` — inspect persistent capture policy.
+16. `clipmem app settings show --format json` — inspect menu bar app preferences.
+17. `clipmem app settings set KEY VALUE --format json` / `clear KEY --format json` — change app-local preferences and bump app preference revision.
+18. `clipmem app launch-at-login show|set|clear --format json` — inspect or change the app-owned launch-at-login preference bridge.
+19. `clipmem app update-check show|run|clear --format json` — inspect, run, or clear app update-check state.
+20. `clipmem app quit --format json` — request the menu bar app to quit.
+21. `clipmem agents context --format json` — one-call agent context: generated_at, service health, settings, app state, recent activity metadata, revision, stats, privacy guidance, and capability summary.
+22. `clipmem ocr status --format json` — inspect local OCR queue and result counts.
+23. `clipmem ocr candidates --format json` — inspect pending OCR candidates without running OCR.
+24. `clipmem ocr get <raw-sha256> --format json` / `clear <raw-sha256> --format json` — inspect or clear one OCR result.
+25. `clipmem ocr run [--limit N] [--snapshot ID]` — backfill OCR for image snapshots.
 
 Primitive commands are the direct read/list/get/set/delete/start/stop surfaces
 above. Convenience workflows are still supported but should be classified
@@ -83,6 +84,7 @@ user has not explicitly asked to proceed.
 | `setup` | — | — | Seed one capture and start background capture |
 | `service status` | text (or `--json`) | — | Background provider state + capture freshness |
 | `service providers` | text (`json` supported) | — | Service provider availability without mutation |
+| `service revision` | text (`json` supported) | — | Archive revision counters without provider probes |
 | `service start` / `stop` / `uninstall` | — | — | Manage the background watcher service |
 | `doctor` | text (or `--json`) | — | SQLite / FTS5 diagnostics |
 | `agents openclaw doctor` | text | — | Integration health: PATH, workspace, sandbox |
@@ -253,6 +255,7 @@ clipmem app update-check show [--format json]
 clipmem app update-check run [--format json]
 clipmem app update-check clear [--format json]
 clipmem app quit [--format json]
+clipmem service revision [--format json]
 clipmem ocr status [--format json]
 clipmem ocr candidates [--limit N] [--snapshot ID] [--format json]
 clipmem ocr get <raw-sha256> [--format json]
@@ -273,6 +276,8 @@ clipmem ocr run [--limit N] [--snapshot ID] [--retry-failed] [--format json]
 `app settings`, `app launch-at-login`, and `app update-check` are menu bar app state bridges. They read and write app-local preferences without changing archive capture policy. Mutating commands bump `app_preferences_revision` so an open app can observe external agent changes. Launch-at-login writes the desired app-owned preference; the menu bar app applies it through `SMAppService`. `app update-check run` performs the live latest-stable-release lookup and updates the same cache the app reads. `app quit` requests the menu bar app to terminate through the app bundle identifier.
 
 `clipmem agents context --format json` is safe as a first call in agent sessions. It includes `generated_at`, service health, capture policy, archive revision, bounded recent activity, menu bar app state, capability discovery, and privacy guidance. It excludes raw clipboard content and representation bytes, but includes operational metadata such as app names, timestamps, counts, paths, and app preference state.
+
+`clipmem service revision --format json` is the lightweight polling path for change detection. It reads the same archive revision counters surfaced in service status and agent context without checking Homebrew, LaunchAgent, or other service providers.
 
 ---
 
@@ -307,4 +312,4 @@ Scripts can rely on these to distinguish "no such snapshot" (retriable with a di
 - stderr contains diagnostics only.
 - No interactive prompts anywhere in the CLI.
 - List commands use bounded `--limit` defaults and opaque cursor pagination.
-- `--format json` output is stable within `schema_version: 2`.
+- Retrieval JSON envelopes (`search`, `recent`, `timeline`, `get`, `recall`, and mutation confirmations that include `schema_version`) are stable within `schema_version: 2`. Management and inspection commands such as `agents context`, `app`, `service`, `ocr`, and `storage image-candidates` have command-specific JSON shapes; parse their documented keys directly and do not require `schema_version: 2` unless the command emits it.

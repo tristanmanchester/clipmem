@@ -96,6 +96,30 @@ fn setup_and_service_help_include_examples() {
 }
 
 #[test]
+fn service_revision_reports_revision_without_service_probe() -> Result<()> {
+    let path = temp_db_path("service-revision");
+    seed_database(&path, &[text_snapshot(1, "revision fixture")])?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "service",
+        "revision",
+        "--format",
+        "json",
+    ]);
+    let payload: Value =
+        serde_json::from_slice(&output.stdout).expect("service revision JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert_eq!(payload["revision"].as_u64(), Some(1));
+    assert_eq!(payload["archive_content_revision"].as_u64(), Some(1));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
     let path = temp_db_path("agents-context");
     let store_path = temp_artifact_path("agents-context-app-store", ".json");

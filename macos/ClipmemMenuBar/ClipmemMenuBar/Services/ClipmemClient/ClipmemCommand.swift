@@ -14,6 +14,10 @@ struct ClipmemCommand: Equatable, Sendable {
         ClipmemCommand(arguments: ["service", "status", "--json"])
     }
 
+    static func serviceRevision() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["service", "revision", "--format", "json"])
+    }
+
     static func doctor() -> ClipmemCommand {
         ClipmemCommand(arguments: ["doctor", "--json"])
     }

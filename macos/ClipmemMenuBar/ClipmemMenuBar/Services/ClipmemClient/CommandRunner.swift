@@ -22,11 +22,15 @@ struct CommandRunner: Sendable {
     }
 
     func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        try await run(executable: executable, arguments: arguments, timeout: nil)
+    }
+
+    func run(executable: String, arguments: [String], timeout: Duration?) async throws -> CommandResult {
         let runningProcess = RunningProcess()
         let cancellationState = CancellationState()
         let processStarted = processStarted
         return try await withTaskCancellationHandler {
-            try await Task.detached(priority: .userInitiated) {
+            let commandTask = Task.detached(priority: .userInitiated) {
                 let process = Process()
                 let stdout = Pipe()
                 let stderr = Pipe()
@@ -68,7 +72,19 @@ struct CommandRunner: Sendable {
                 let stderrData = stderrReader.wait()
                 try cancellationState.checkCancellation()
                 return CommandResult(exitCode: process.terminationStatus, stdout: stdoutData, stderr: stderrData)
-            }.value
+            }
+            if let timeout {
+                let timeoutTask = Task {
+                    try? await Task.sleep(for: timeout)
+                    if !Task.isCancelled {
+                        cancellationState.cancel()
+                        runningProcess.terminate()
+                    }
+                }
+                defer { timeoutTask.cancel() }
+                return try await commandTask.value
+            }
+            return try await commandTask.value
         } onCancel: {
             cancellationState.cancel()
             runningProcess.terminate()

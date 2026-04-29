@@ -60,7 +60,7 @@ final class HistoryModel {
     }
 
     func refreshForExternalHistoryChange() async {
-        guard mode == .recent || mode == .timeline else { return }
+        guard mode != .diagnostics else { return }
 
         loadGeneration += 1
         let generation = loadGeneration

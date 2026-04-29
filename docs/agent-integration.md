@@ -127,7 +127,7 @@ The skills and parity map distinguish primitive commands from
 convenience workflows:
 
 - Primitive reads include `search`, `recent`, `timeline`, `get`,
-  `stats`, `settings show`, `service status`, `service providers`,
+  `stats`, `settings show`, `service status`, `service providers`, `service revision`,
   `ocr candidates`, `ocr get`, `storage image-candidates`, `app
   settings show`, `app launch-at-login show`, `app update-check show`,
   `app update-check run`, and `agents context`.

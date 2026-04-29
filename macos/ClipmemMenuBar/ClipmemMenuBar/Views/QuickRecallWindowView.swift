@@ -79,6 +79,12 @@ struct QuickRecallWindowView: View {
                 pendingForgetItem = nil
             }
         }
+        .onChange(of: appModel.clipboardHistoryRevision) {
+            Task {
+                syncMode()
+                await quick.refresh()
+            }
+        }
     }
 
     // MARK: - Header

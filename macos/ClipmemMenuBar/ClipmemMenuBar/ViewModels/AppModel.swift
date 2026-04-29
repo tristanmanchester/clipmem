@@ -31,6 +31,8 @@ final class AppModel {
     var launchAtLoginEnabled = UserDefaults.standard.clipmemLaunchAtLoginEnabled
     var launchAtLoginStatus = LoginItemController.status()
     var launchAtLoginError: UserError?
+    var defaultRecentHours = UserDefaults.standard.clipmemDefaultHours
+    var defaultQueryMode = UserDefaults.standard.clipmemDefaultMode
     var isRefreshing = false
     var isRunningAction = false
     var imageOptimizationProgress: ImageOptimizationProgressState?
@@ -48,6 +50,7 @@ final class AppModel {
     @ObservationIgnored private var revisionMonitorTask: Task<Void, Never>?
     @ObservationIgnored private var observedRevision: ArchiveRevision?
     @ObservationIgnored private var revisionRefreshInFlight = false
+    @ObservationIgnored private var configurationGeneration = 0
     @ObservationIgnored private var recentRefreshCoordinator: RecentPreviewRefreshCoordinator?
     @ObservationIgnored private var recentPreviewRefreshedAt: Date?
     @ObservationIgnored private var openQuickRecallAction: (@MainActor () -> Void)?
@@ -394,7 +397,7 @@ final class AppModel {
     }
 
     func copyAgentSkillInstallCommand() {
-        PasteboardActions.copyPlainText("clipmem agents openclaw install-skill")
+        PasteboardActions.copyPlainText(agentCommand("agents openclaw install-skill"))
         showActionMessage("Agent skill install command copied")
     }
 
@@ -583,10 +586,18 @@ final class AppModel {
         revisionRefreshInFlight = true
         defer { revisionRefreshInFlight = false }
 
+        let defaults = UserDefaults.standard
+        defaults.synchronize()
+        if lastResolvedBinaryPath != defaults.string(forKey: PreferenceKey.binaryPathOverride)
+            || lastResolvedDatabasePath != defaults.string(forKey: PreferenceKey.databasePathOverride) {
+            await refreshAppPreferences()
+            return
+        }
+
+        let generation = configurationGeneration
         do {
-            let status = try await client.serviceStatus()
-            serviceStatus = status
-            guard let next = status.revision else { return }
+            let next = try await client.serviceRevision()
+            guard generation == configurationGeneration else { return }
             guard let previous = observedRevision else {
                 observedRevision = next
                 return
@@ -651,10 +662,14 @@ final class AppModel {
         let previousHotkeyEnabled = hotkeyEnabled
         let previousLaunchAtLoginEnabled = launchAtLoginEnabled
         let previousUpdateStatus = updateStatus
+        let previousDefaultRecentHours = defaultRecentHours
+        let previousDefaultQueryMode = defaultQueryMode
         let nextBinaryPath = defaults.string(forKey: PreferenceKey.binaryPathOverride)
         let nextDatabasePath = defaults.string(forKey: PreferenceKey.databasePathOverride)
         lastResolvedBinaryPath = nextBinaryPath
         lastResolvedDatabasePath = nextDatabasePath
+        defaultRecentHours = defaults.clipmemDefaultHours
+        defaultQueryMode = defaults.clipmemDefaultMode
 
         let nextHotkeyEnabled = defaults.clipmemHotkeyEnabled
         hotkeyEnabled = nextHotkeyEnabled
@@ -666,9 +681,12 @@ final class AppModel {
         updateStatus = UpdateStatus.load()
 
         if previousBinaryPath != nextBinaryPath || previousDatabasePath != nextDatabasePath {
+            configurationGeneration += 1
             observedRevision = nil
             await refreshAll()
         } else if previousHotkeyEnabled != nextHotkeyEnabled || previousLaunchAtLoginEnabled != launchAtLoginEnabled || previousUpdateStatus != updateStatus {
+            clipboardHistoryRevision += 1
+        } else if previousDefaultRecentHours != defaultRecentHours || previousDefaultQueryMode != defaultQueryMode {
             clipboardHistoryRevision += 1
         }
     }

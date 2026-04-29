@@ -101,9 +101,11 @@ fn app_settings_show(args: &AppSettingsShowArgs) -> Result<()> {
 
 fn app_settings_set(db_path: &Path, args: &AppSettingsSetArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     let value = parse_app_preference_value(args.key, &args.value)?;
     set_preference(args.key, value)?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_app_settings()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -114,8 +116,10 @@ fn app_settings_set(db_path: &Path, args: &AppSettingsSetArgs) -> Result<()> {
 
 fn app_settings_clear(db_path: &Path, args: &AppSettingsClearArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     clear_preference(args.key)?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_app_settings()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -144,10 +148,12 @@ fn app_launch_at_login_show(args: &AppLaunchAtLoginShowArgs) -> Result<()> {
 
 fn app_launch_at_login_set(db_path: &Path, args: &AppLaunchAtLoginSetArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     let enabled = matches!(args.state, ToggleState::On);
     set_named_preference(LAUNCH_AT_LOGIN_ENABLED_KEY, Value::Bool(enabled))?;
     set_named_preference(DID_CONFIGURE_LAUNCH_AT_LOGIN_KEY, Value::Bool(true))?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_launch_at_login()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -158,9 +164,11 @@ fn app_launch_at_login_set(db_path: &Path, args: &AppLaunchAtLoginSetArgs) -> Re
 
 fn app_launch_at_login_clear(db_path: &Path, args: &AppLaunchAtLoginClearArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     clear_named_preference(LAUNCH_AT_LOGIN_ENABLED_KEY)?;
     clear_named_preference(DID_CONFIGURE_LAUNCH_AT_LOGIN_KEY)?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_launch_at_login()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -189,6 +197,7 @@ fn app_update_check_show(args: &AppUpdateCheckShowArgs) -> Result<()> {
 
 fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     let release = fetch_latest_release()?;
     let checked_at = unix_timestamp_now()?;
     match release {
@@ -205,7 +214,8 @@ fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<
         }
     }
     set_named_preference(LAST_UPDATE_CHECK_AT_KEY, Value::from(checked_at))?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_update_check()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -216,10 +226,12 @@ fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<
 
 fn app_update_check_clear(db_path: &Path, args: &AppUpdateCheckClearArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let previous_paths = app_preference_revision_paths(db_path)?;
     clear_named_preference(CACHED_LATEST_VERSION_KEY)?;
     clear_named_preference(CACHED_LATEST_RELEASE_URL_KEY)?;
     clear_named_preference(LAST_UPDATE_CHECK_AT_KEY)?;
-    bump_app_preferences_revision(db_path)?;
+    let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
+    bump_app_preferences_revisions(&paths)?;
     let output = load_update_check()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -336,11 +348,11 @@ fn fetch_latest_release() -> Result<Option<GitHubRelease>> {
     Ok(Some(release))
 }
 
-fn unix_timestamp_now() -> Result<f64> {
+fn unix_timestamp_now() -> Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .context("system time before Unix epoch")?
-        .as_secs_f64())
+        .as_secs())
 }
 
 fn request_menu_bar_app_quit() -> Result<AppQuitOutput> {
@@ -473,7 +485,11 @@ fn set_named_preference(key: &str, value: Value) -> Result<()> {
             command.arg(value);
         }
         Value::Number(value) => {
-            command.args(["-int", &value.to_string()]);
+            if value.is_f64() {
+                command.args(["-float", &value.to_string()]);
+            } else {
+                command.args(["-int", &value.to_string()]);
+            }
         }
         Value::Bool(value) => {
             command.args(["-bool", if value { "true" } else { "false" }]);
@@ -550,11 +566,41 @@ fn write_override_store(path: &Path, store: &BTreeMap<String, Value>) -> Result<
         .with_context(|| format!("write {}", path.display()))
 }
 
-fn bump_app_preferences_revision(db_path: &Path) -> Result<()> {
-    Database::open_or_init(db_path)?
-        .bump_app_preferences_revision()
-        .map(|_| ())
-        .context("record app preference revision")?;
+fn app_preference_revision_paths(db_path: &Path) -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    push_unique_path(&mut paths, db_path.to_path_buf());
+    if let Some(override_path) = read_string(AppPreferenceKey::DatabasePathOverride)? {
+        let trimmed = override_path.trim();
+        if !trimmed.is_empty() {
+            push_unique_path(&mut paths, PathBuf::from(trimmed));
+        }
+    }
+    Ok(paths)
+}
+
+fn app_preference_revision_paths_after_mutation(
+    db_path: &Path,
+    mut paths: Vec<PathBuf>,
+) -> Result<Vec<PathBuf>> {
+    for path in app_preference_revision_paths(db_path)? {
+        push_unique_path(&mut paths, path);
+    }
+    Ok(paths)
+}
+
+fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if !paths.iter().any(|existing| existing == &path) {
+        paths.push(path);
+    }
+}
+
+fn bump_app_preferences_revisions(paths: &[PathBuf]) -> Result<()> {
+    for path in paths {
+        Database::open_or_init(path)?
+            .bump_app_preferences_revision()
+            .map(|_| ())
+            .with_context(|| format!("record app preference revision in {}", path.display()))?;
+    }
     notify_app_refresh();
     Ok(())
 }

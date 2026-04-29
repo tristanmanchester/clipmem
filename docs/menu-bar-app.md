@@ -89,7 +89,9 @@ launch-at-login preference, and cached update-check state are also exposed
 through `clipmem app ... --format json`. Mutations from the CLI bump the
 archive revision ledger and publish a best-effort macOS notification so an
 already-open menu bar app can rehydrate settings promptly. Missed notifications
-are harmless because the app continues polling the durable revision signal.
+are harmless because the app continues polling the durable revision signal with
+`clipmem service revision --format json`, which avoids the heavier service
+provider checks used by full status reports.
 
 ## Build from source
 

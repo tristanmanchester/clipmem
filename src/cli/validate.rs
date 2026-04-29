@@ -21,6 +21,9 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
             ServiceCommand::Providers(args) => {
                 validate_value(args.output.resolved())?;
             }
+            ServiceCommand::Revision(args) => {
+                validate_value(args.output.resolved())?;
+            }
             ServiceCommand::Status(args) => {
                 validate_json_human_flags(args.json, args.human)?;
             }

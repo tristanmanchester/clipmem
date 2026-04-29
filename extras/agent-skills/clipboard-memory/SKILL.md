@@ -50,8 +50,9 @@ Always pick the narrowest command that answers the question, and always pass `--
 6. **`clipmem ocr candidates`, `clipmem ocr get`, `clipmem ocr clear`, and `clipmem storage image-candidates`** — inspect queued OCR or image optimization work before running batch workflows, or clear one stale OCR result.
 7. **`clipmem settings reset --format json`** — reset capture policy and ignored apps when the user explicitly asks to restore defaults.
 8. **`clipmem service providers --format json`** — inspect service provider state without starting or stopping capture.
-9. **`clipmem app settings`, `clipmem app launch-at-login`, `clipmem app update-check run`, or `clipmem app quit` with `--format json`** — inspect or change menu bar app preferences and app-owned state when the user asks about app defaults, update checks, or quitting the app.
-10. **`clipmem agents context --format json`** — compact health, settings, app state, recent activity, revision, stats, privacy, and capability context before multi-step work.
+9. **`clipmem service revision --format json`** — inspect archive revision counters without probing service providers.
+10. **`clipmem app settings`, `clipmem app launch-at-login`, `clipmem app update-check run`, or `clipmem app quit` with `--format json`** — inspect or change menu bar app preferences and app-owned state when the user asks about app defaults, update checks, or quitting the app.
+11. **`clipmem agents context --format json`** — compact health, settings, app state, recent activity, revision, stats, privacy, and capability context before multi-step work.
 
 ## Primitive command taxonomy
 
@@ -78,12 +79,12 @@ The repo-side agent-native action parity contract lives in `docs/action-parity.m
 
 ## Output format rule
 
-- `--format json` — single structured object. Use whenever you will parse the response. Stable within `schema_version: 2`.
+- `--format json` — structured output. Retrieval envelopes are stable within `schema_version: 2`; management and inspection commands use command-specific JSON shapes, so parse documented keys directly.
 - `--format toon` — flat, token-efficient list. Prefer for high-cardinality enumeration (`timeline`, `search`, `recent`, `recall`) when you only need the top fields. Note: `get` does **not** support `toon`.
 - `--format jsonl` — newline-delimited records. Use when streaming many rows into a pipeline.
 - `--format md` / `--format text` — human-readable previews only; never parse these.
 
-`--json` is an alias for `--format json` on `search`, `recent`, `timeline`, `get`, `capture-once`, and `doctor`.
+`--json` is an alias for `--format json` on `search`, `recent`, `timeline`, `get`, `service revision`, `capture-once`, and `doctor`.
 
 ## Which command for which intent
 
