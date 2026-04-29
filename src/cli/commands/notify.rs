@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 pub(in crate::cli) const APP_REFRESH_NOTIFICATION: &str = "io.openclaw.clipmem.revision.changed";
 
 pub(in crate::cli) fn notify_app_refresh() {

@@ -34,33 +34,7 @@ impl ArchiveChangeKind {
     }
 }
 
-#[allow(dead_code)]
 impl ArchiveRevision {
-    #[must_use]
-    pub(crate) fn new(
-        revision: u64,
-        archive_content_revision: u64,
-        settings_revision: u64,
-        ocr_revision: u64,
-        storage_revision: u64,
-        service_revision: u64,
-        app_preferences_revision: u64,
-        last_change_kind: String,
-        updated_at: String,
-    ) -> Self {
-        Self {
-            revision,
-            archive_content_revision,
-            settings_revision,
-            ocr_revision,
-            storage_revision,
-            service_revision,
-            app_preferences_revision,
-            last_change_kind,
-            updated_at,
-        }
-    }
-
     #[must_use]
     pub fn revision(&self) -> u64 {
         self.revision

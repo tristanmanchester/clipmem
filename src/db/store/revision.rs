@@ -24,17 +24,17 @@ impl Database {
                 ",
                 [],
                 |row| {
-                    Ok(ArchiveRevision::new(
-                        row_u64(row, 0)?,
-                        row_u64(row, 1)?,
-                        row_u64(row, 2)?,
-                        row_u64(row, 3)?,
-                        row_u64(row, 4)?,
-                        row_u64(row, 5)?,
-                        row_u64(row, 6)?,
-                        row.get(7)?,
-                        row.get(8)?,
-                    ))
+                    Ok(ArchiveRevision {
+                        revision: row_u64(row, 0)?,
+                        archive_content_revision: row_u64(row, 1)?,
+                        settings_revision: row_u64(row, 2)?,
+                        ocr_revision: row_u64(row, 3)?,
+                        storage_revision: row_u64(row, 4)?,
+                        service_revision: row_u64(row, 5)?,
+                        app_preferences_revision: row_u64(row, 6)?,
+                        last_change_kind: row.get(7)?,
+                        updated_at: row.get(8)?,
+                    })
                 },
             )
             .context("load archive revision")

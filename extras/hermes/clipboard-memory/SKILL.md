@@ -1,7 +1,7 @@
 ---
 name: clipboard-memory
 description: Recall what the user copied on this Mac via the local clipmem archive: exact text, commands, SQL, URLs, file paths, HTML, images, and PDFs. Trigger on requests like "what was that command I copied?", "paste back that SQL", "the URL I copied from Safari", "show me what I copied from Xcode today", "find the snippet/path/link from before I restarted", and indirect paraphrases about clipboard history or recovering copied content. Prefer this over web, repo, or filesystem search only when the target was likely copied.
-version: "1.3.3"
+version: "1.3.4"
 license: MIT
 platforms: [macos]
 metadata:

@@ -62,6 +62,8 @@ versioning where practical.
 
 - Refreshed the README menu bar popover screenshot to show Markdown rendering,
   link badges, and updated row icons.
+- Updated the ClawHub `clipboard-memory` skill package to 1.3.4 for the
+  agent-native command and JSON contract updates.
 
 ### Fixed
 

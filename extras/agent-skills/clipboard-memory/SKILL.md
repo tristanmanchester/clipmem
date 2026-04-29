@@ -4,7 +4,7 @@ description: Recall what the user copied on this Mac via the local clipmem archi
 license: MIT
 compatibility: macOS with a local `clipmem` binary on PATH. Works in any agent runtime with filesystem and shell access. The `clipmem` watcher daemon (LaunchAgent `io.openclaw.clipmem.watch`) should be running for continuous capture; a stale watcher is the most common cause of empty results.
 metadata:
-  version: "1.3.3"
+  version: "1.3.4"
   variant: "portable"
 ---
 

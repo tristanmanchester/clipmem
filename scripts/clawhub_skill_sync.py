@@ -315,13 +315,22 @@ def wait_for_remote_hashes(
     )
 
 
-def check_mode(local_version: str, remote_version: str, local_hashes: dict[str, str], slug: str) -> None:
+def check_mode(
+    *,
+    repo_root: Path,
+    local_version: str,
+    remote_version: str,
+    local_hashes: dict[str, str],
+    slug: str,
+) -> None:
     ordering = compare_versions(local_version, remote_version)
     if ordering > 0:
-        raise SyncError(
-            f"local {slug}@{local_version} is newer than ClawHub "
-            f"{remote_version}; publish is needed."
+        changelog = derive_changelog(repo_root)
+        print(
+            f"Local {slug}@{local_version} is newer than ClawHub {remote_version}; "
+            f"publish will run after merge. Changelog: {changelog}"
         )
+        return
     if ordering < 0:
         raise SyncError(
             f"repo skill {slug}@{local_version} is behind ClawHub {remote_version}."
@@ -380,7 +389,13 @@ def main() -> int:
         )
 
         if args.mode == "check":
-            check_mode(local_version, remote_version, local_hashes, args.slug)
+            check_mode(
+                repo_root=args.repo_root,
+                local_version=local_version,
+                remote_version=remote_version,
+                local_hashes=local_hashes,
+                slug=args.slug,
+            )
         else:
             publish_mode(
                 repo_root=repo_root,
