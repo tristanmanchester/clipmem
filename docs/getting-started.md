@@ -61,8 +61,9 @@ clipmem agents context --format json
 ```
 
 This reports the database path, service health, capture policy, archive
-revision, archive statistics, and capability summary without dumping raw
-clipboard content.
+revision, archive statistics, menu bar app state, recent activity metadata,
+privacy guidance, and capability summary without dumping raw clipboard
+content.
 
 ## Run your first queries
 

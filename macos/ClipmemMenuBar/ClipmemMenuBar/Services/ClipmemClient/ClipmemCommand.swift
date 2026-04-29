@@ -86,8 +86,16 @@ struct ClipmemCommand: Equatable, Sendable {
         ClipmemCommand(arguments: ["app", "update-check", "show", "--format", "json"])
     }
 
+    static func appUpdateCheckRun() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "update-check", "run", "--format", "json"])
+    }
+
     static func appUpdateCheckClear() -> ClipmemCommand {
         ClipmemCommand(arguments: ["app", "update-check", "clear", "--format", "json"])
+    }
+
+    static func appQuit() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "quit", "--format", "json"])
     }
 
     static func recent(limit: Int, cursor: String?, filters: RetrievalFilterState) -> ClipmemCommand {

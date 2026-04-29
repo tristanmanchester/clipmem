@@ -98,21 +98,45 @@ fn setup_and_service_help_include_examples() {
 #[test]
 fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
     let path = temp_db_path("agents-context");
+    let store_path = temp_artifact_path("agents-context-app-store", ".json");
+    fs::write(
+        &store_path,
+        r#"{
+  "defaultRecentHours": 12,
+  "binaryPathOverride": "",
+  "databasePathOverride": "",
+  "defaultQueryMode": "recall",
+  "hotkeyEnabled": false,
+  "launchAtLoginEnabled": true,
+  "didConfigureLaunchAtLogin": true,
+  "cachedLatestVersion": "v999.0.0",
+  "cachedLatestReleaseURL": "https://github.com/tristanmanchester/clipmem/releases/tag/v999.0.0",
+  "lastUpdateCheckAt": 1800000000.0
+}"#,
+    )?;
+    let envs = vec![(
+        "CLIPMEM_APP_SETTINGS_STORE".to_string(),
+        store_path.display().to_string(),
+    )];
     seed_database(&path, &[text_snapshot(1, "agent context fixture")])?;
 
-    let output = run_cli(&[
-        "--db",
-        path.to_str().expect("db path should be UTF-8"),
-        "agents",
-        "context",
-        "--format",
-        "json",
-    ]);
+    let output = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "agents",
+            "context",
+            "--format",
+            "json",
+        ],
+        &envs,
+    );
     let payload: Value =
         serde_json::from_slice(&output.stdout).expect("agents context JSON should parse");
 
     assert!(output.status.success(), "{}", stderr_text(&output));
     assert_eq!(payload["schema_version"].as_u64(), Some(1));
+    assert!(payload["generated_at"].as_str().is_some());
     assert_eq!(payload["db_exists"].as_bool(), Some(true));
     assert_eq!(
         payload["revision"]["archive_content_revision"].as_u64(),
@@ -120,11 +144,57 @@ fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
     );
     assert_eq!(payload["stats"]["snapshot_count"].as_u64(), Some(1));
     assert_eq!(
+        payload["app"]["settings"]["default_recent_hours"].as_u64(),
+        Some(12)
+    );
+    assert_eq!(
+        payload["app"]["settings"]["default_query_mode"].as_str(),
+        Some("recall")
+    );
+    assert!(payload["app"]["settings"]["binary_path_override"].is_null());
+    assert!(payload["app"]["settings"]["database_path_override"].is_null());
+    assert_eq!(
+        payload["app"]["launch_at_login"]["desired_enabled"].as_bool(),
+        Some(true)
+    );
+    assert_eq!(
+        payload["app"]["update_check"]["latest_version"].as_str(),
+        Some("v999.0.0")
+    );
+    assert_eq!(
+        payload["privacy"]["includes_raw_clipboard_content"].as_bool(),
+        Some(false)
+    );
+    assert!(payload["privacy"]["includes_metadata"]
+        .as_array()
+        .expect("metadata disclosure")
+        .iter()
+        .any(|value| value.as_str() == Some("top app names")));
+    assert!(payload["privacy"]["note"]
+        .as_str()
+        .expect("privacy note")
+        .contains("operational metadata"));
+    assert_eq!(
+        payload["recent_activity"]["last_24h"]["snapshot_count"].as_u64(),
+        Some(1)
+    );
+    assert!(payload["capabilities"]["app_state"]
+        .as_array()
+        .expect("app_state capabilities")
+        .iter()
+        .any(|value| value.as_str() == Some("app update-check run")));
+    assert!(payload["capabilities"]["primitive_reads"]
+        .as_array()
+        .expect("primitive_reads capabilities")
+        .iter()
+        .any(|value| value.as_str() == Some("storage image-candidates")));
+    assert_eq!(
         payload["capabilities"]["action_parity_doc"].as_str(),
         Some("docs/action-parity.md")
     );
 
     cleanup_db(&path);
+    cleanup_temp_artifact(&store_path);
     Ok(())
 }
 

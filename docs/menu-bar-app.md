@@ -78,9 +78,18 @@ SQLite-backed `clipmem settings` policy. Changes made in the app's
 use.
 
 The Diagnostics tab includes agent integration actions for copying the
-context preflight command and packaged skill install command. These are
-copy-only helpers; the CLI remains the source of truth for actual agent
-integration state.
+context preflight command, OpenClaw and Hermes doctor commands, packaged skill
+install and print commands, and the maintained action-parity capability map.
+These are copy-only helpers; the CLI remains the source of truth for actual
+agent integration state.
+
+App-local preferences such as the binary path override, database path override,
+default recall/search mode, default recent window, hotkey enablement,
+launch-at-login preference, and cached update-check state are also exposed
+through `clipmem app ... --format json`. Mutations from the CLI bump the
+archive revision ledger and publish a best-effort macOS notification so an
+already-open menu bar app can rehydrate settings promptly. Missed notifications
+are harmless because the app continues polling the durable revision signal.
 
 ## Build from source
 

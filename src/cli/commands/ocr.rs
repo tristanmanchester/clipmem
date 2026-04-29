@@ -13,6 +13,7 @@ use crate::cli::schema::{
 };
 
 use super::mutation_support::require_text_or_json;
+use super::notify::notify_app_refresh;
 use super::runtime::open_or_init_db;
 
 pub(in crate::cli) fn ocr(db_path: &Path, args: &OcrArgs) -> Result<()> {
@@ -54,6 +55,9 @@ fn ocr_run(db_path: &Path, args: &OcrRunArgs) -> Result<()> {
         OutputFormat::Human => print!("{}", render_ocr_run_human(&report)),
         OutputFormat::Text => print!("{}", render_ocr_run_text(&report)),
         _ => unreachable!("unsupported ocr run format should be rejected earlier"),
+    }
+    if report.processed() > 0 {
+        notify_app_refresh();
     }
     Ok(())
 }
@@ -104,6 +108,7 @@ fn ocr_clear(db_path: &Path, args: &OcrClearArgs) -> Result<()> {
         OutputFormat::Text => print!("{}", render_ocr_status_text(&report)),
         _ => unreachable!("unsupported ocr clear format should be rejected earlier"),
     }
+    notify_app_refresh();
     Ok(())
 }
 

@@ -98,7 +98,7 @@ Then copy a new piece of text and retry the Hermes query.
 If results are weak:
 
 - Widen `--hours`.
-- Drop restrictive `--app`, `--kind`, `--has-url`, or `--has-file` filters.
+- Drop restrictive `--app`, `--kind`, `--has-url`, or `--has-file-url` filters.
 - Use `clipmem search --mode literal` for exact punctuation-heavy strings.
 - Use `clipmem timeline` for chronology.
 - Inspect `alternatives` when `best_match_confidence` is `"low"`.

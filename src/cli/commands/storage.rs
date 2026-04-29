@@ -14,6 +14,7 @@ use crate::cli::schema::{
 use crate::db::ImageOptimizationCandidateSummary;
 
 use super::mutation_support::require_text_or_json;
+use super::notify::notify_app_refresh;
 use super::runtime::open_existing_db;
 
 pub(in crate::cli) fn storage(db_path: &Path, args: &StorageArgs) -> Result<()> {
@@ -28,7 +29,11 @@ fn storage_compact(db_path: &Path, args: &StorageCompactArgs) -> Result<()> {
     let format = require_text_or_json(args.output.resolved()?, "storage compact")?;
     let mut db = open_existing_db(db_path)?;
     let report = db.compact_storage(args.dry_run)?;
-    emit_storage_compact_output(format, &report)
+    emit_storage_compact_output(format, &report)?;
+    if !report.dry_run && report.completed {
+        notify_app_refresh();
+    }
+    Ok(())
 }
 
 fn storage_optimize_images(db_path: &Path, args: &StorageOptimizeImagesArgs) -> Result<()> {
@@ -37,13 +42,20 @@ fn storage_optimize_images(db_path: &Path, args: &StorageOptimizeImagesArgs) -> 
         db.optimize_images_with_progress(args.dry_run, args.limit, !args.no_compact, |event| {
             print_json_line(&event)
         })?;
+        if !args.dry_run {
+            notify_app_refresh();
+        }
         return Ok(());
     }
 
     let format = require_text_or_json(args.output.resolved()?, "storage optimize-images")?;
     let mut db = open_existing_db(db_path)?;
     let report = db.optimize_images(args.dry_run, args.limit, !args.no_compact)?;
-    emit_image_optimization_output(format, &report)
+    emit_image_optimization_output(format, &report)?;
+    if !report.dry_run && report.compressed_rows > 0 {
+        notify_app_refresh();
+    }
+    Ok(())
 }
 
 fn storage_image_candidates(db_path: &Path, args: &StorageImageCandidatesArgs) -> Result<()> {

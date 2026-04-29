@@ -159,8 +159,8 @@ fn app_state_commands_parse_output() {
         "--format",
         "json",
     ]);
-    let update_cli =
-        Cli::parse_from(["clipmem", "app", "update-check", "show", "--format", "json"]);
+    let update_cli = Cli::parse_from(["clipmem", "app", "update-check", "run", "--format", "json"]);
+    let quit_cli = Cli::parse_from(["clipmem", "app", "quit", "--format", "json"]);
 
     match launch_cli.command {
         Command::App(args) => match args.command {
@@ -178,12 +178,22 @@ fn app_state_commands_parse_output() {
     match update_cli.command {
         Command::App(args) => match args.command {
             AppCommand::UpdateCheck(args) => match args.command {
-                AppUpdateCheckCommand::Show(args) => {
+                AppUpdateCheckCommand::Run(args) => {
                     assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
                 }
-                other => panic!("expected app update-check show command, got {other:?}"),
+                other => panic!("expected app update-check run command, got {other:?}"),
             },
             other => panic!("expected update-check command, got {other:?}"),
+        },
+        other => panic!("expected app command, got {other:?}"),
+    }
+
+    match quit_cli.command {
+        Command::App(args) => match args.command {
+            AppCommand::Quit(args) => {
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected app quit command, got {other:?}"),
         },
         other => panic!("expected app command, got {other:?}"),
     }

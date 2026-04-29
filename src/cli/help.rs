@@ -4,6 +4,7 @@ Examples:
   clipmem service status
   clipmem service providers --format json
   clipmem app settings show --format json
+  clipmem app update-check run --format json
   clipmem recall \"what was that shell command?\"
   clipmem recent --hours 24
   clipmem stats
@@ -24,6 +25,8 @@ Examples:
   clipmem app settings show --format json
   clipmem app settings set default-recent-hours 12 --format json
   clipmem app settings clear binary-path-override --format json
+  clipmem app update-check run --format json
+  clipmem app quit --format json
 
 Notes:
   - App commands manage menu bar app preferences, not capture policy.
@@ -42,6 +45,16 @@ Examples:
 Keys:
   binary-path-override, database-path-override, default-recent-hours,
   default-query-mode, hotkey-enabled";
+
+pub(super) const AGENTS_CONTEXT_AFTER_HELP: &str = "\
+Examples:
+  clipmem agents context --format json
+  clipmem agents context --human
+
+Notes:
+  - JSON output includes `generated_at`, `clipmem_version`, database path, service health, capture settings, menu bar app state, recent activity metadata, privacy guidance, and grouped capabilities.
+  - Context is metadata-first. It excludes raw clipboard content but includes operational metadata such as app names, timestamps, counts, paths, and app preference state.
+  - Use retrieval commands such as `recall`, `search`, `recent`, `timeline`, `get`, or `export` when clipboard content is needed.";
 
 pub(super) const WATCH_AFTER_HELP: &str = "\
 Examples:

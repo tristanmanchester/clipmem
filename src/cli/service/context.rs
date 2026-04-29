@@ -55,6 +55,18 @@ pub(super) fn build_context(db_path: &Path) -> Result<ServiceContext> {
 
 pub(super) fn select_provider(context: &ServiceContext) -> ProviderSelection {
     let mut notes = Vec::new();
+    if context.db_path != context.default_db_path {
+        notes.push(format!(
+            "Direct LaunchAgent provider will use the explicit database path {}.",
+            context.db_path.display()
+        ));
+        return ProviderSelection {
+            provider: ServiceProvider::Launchagent,
+            reason: "explicit database paths require the direct per-user LaunchAgent".to_string(),
+            notes,
+        };
+    }
+
     if let Some(brew_path) = &context.brew_path {
         if context.homebrew_prefix.is_some() {
             if brew_services_available(brew_path) && brew_services_can_manage_clipmem(brew_path) {
@@ -70,13 +82,6 @@ pub(super) fn select_provider(context: &ServiceContext) -> ProviderSelection {
                 "Homebrew install detected, but `brew services` cannot manage the clipmem formula; falling back to a direct LaunchAgent.".to_string(),
             );
         }
-    }
-
-    if context.db_path != context.default_db_path {
-        notes.push(format!(
-            "Direct LaunchAgent provider will use the explicit database path {}.",
-            context.db_path.display()
-        ));
     }
 
     ProviderSelection {

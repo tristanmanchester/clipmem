@@ -15,6 +15,7 @@ use crate::cli::schema::{
 };
 
 use super::mutation_support::require_text_or_json;
+use super::notify::notify_app_refresh;
 use super::runtime::open_or_init_db;
 
 pub(in crate::cli) fn settings(db_path: &Path, args: &SettingsArgs) -> Result<()> {
@@ -39,6 +40,7 @@ fn settings_show(db_path: &Path, args: &SettingsShowArgs) -> Result<()> {
 fn settings_pause(db_path: &Path, args: &SettingsPauseArgs) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     let settings = db.set_paused(args.state.is_on())?;
+    notify_app_refresh();
     let view = settings_view(CapturePolicy::new(settings, db.list_ignored_bundle_ids()?));
     emit_settings_view_output(OutputFormat::Text, &view)
 }
@@ -46,6 +48,7 @@ fn settings_pause(db_path: &Path, args: &SettingsPauseArgs) -> Result<()> {
 fn settings_api_key_filter(db_path: &Path, args: &SettingsApiKeyFilterArgs) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     let settings = db.set_api_key_filter_enabled(args.state.is_on())?;
+    notify_app_refresh();
     let view = settings_view(CapturePolicy::new(settings, db.list_ignored_bundle_ids()?));
     emit_settings_view_output(OutputFormat::Text, &view)
 }
@@ -53,6 +56,7 @@ fn settings_api_key_filter(db_path: &Path, args: &SettingsApiKeyFilterArgs) -> R
 fn settings_ocr(db_path: &Path, args: &SettingsOcrArgs) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     let settings = db.set_ocr_enabled(args.state.is_on())?;
+    notify_app_refresh();
     let view = settings_view(CapturePolicy::new(settings, db.list_ignored_bundle_ids()?));
     emit_settings_view_output(OutputFormat::Text, &view)
 }
@@ -60,6 +64,7 @@ fn settings_ocr(db_path: &Path, args: &SettingsOcrArgs) -> Result<()> {
 fn settings_retention(db_path: &Path, args: &SettingsRetentionArgs) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     let settings = db.set_retention_seconds(args.value.retention_seconds())?;
+    notify_app_refresh();
     let view = settings_view(CapturePolicy::new(settings, db.list_ignored_bundle_ids()?));
     emit_settings_view_output(OutputFormat::Text, &view)
 }
@@ -68,6 +73,7 @@ fn settings_reset(db_path: &Path, args: &SettingsResetArgs) -> Result<()> {
     let format = require_text_or_json(args.output.resolved()?, "settings reset")?;
     let mut db = open_or_init_db(db_path)?;
     let view = settings_view(db.reset_capture_policy()?);
+    notify_app_refresh();
     emit_settings_view_output(format, &view)
 }
 
@@ -82,6 +88,7 @@ fn settings_ignore(db_path: &Path, args: &SettingsIgnoreArgs) -> Result<()> {
 fn settings_ignore_add(db_path: &Path, bundle_id: &str) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     db.add_ignored_bundle_id(bundle_id)?;
+    notify_app_refresh();
     let output = SettingsIgnoreListOutput {
         ignored_bundle_ids: db.list_ignored_bundle_ids()?,
     };
@@ -91,6 +98,7 @@ fn settings_ignore_add(db_path: &Path, bundle_id: &str) -> Result<()> {
 fn settings_ignore_remove(db_path: &Path, bundle_id: &str) -> Result<()> {
     let mut db = open_or_init_db(db_path)?;
     db.remove_ignored_bundle_id(bundle_id)?;
+    notify_app_refresh();
     let output = SettingsIgnoreListOutput {
         ignored_bundle_ids: db.list_ignored_bundle_ids()?,
     };

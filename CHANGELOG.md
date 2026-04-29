@@ -43,6 +43,18 @@ versioning where practical.
 - Added menu bar Diagnostics discovery actions for copying agent context and
   skill install commands, and documented the agent context path in getting
   started and menu bar app docs.
+- Added `clipmem app update-check run` and `clipmem app quit` so agents can
+  run the menu bar app's live update check and request app quit through CLI
+  parity commands.
+- Expanded `clipmem agents context` with generation time, safe menu bar app
+  state, bounded recent activity metadata, privacy guidance, and a fuller
+  capability map.
+- Added best-effort macOS app refresh notifications after CLI mutations so an
+  open menu bar app can react faster while still using archive revisions as
+  the durable source of truth.
+- Added richer menu bar Diagnostics agent discovery actions for OpenClaw and
+  Hermes doctor commands, packaged skill inspection, and the maintained
+  capability map.
 
 ### Changed
 
@@ -51,6 +63,9 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed open menu bar app preference rehydration after external `clipmem app`
+  mutations so database/binary overrides, launch-at-login, hotkey state, and
+  cached update-check state refresh without restarting the app.
 - Fixed menu bar Markdown rendering for multiline text so headings and body text
   keep their line breaks in recent rows and History instead of being flattened
   into one line before rendering.

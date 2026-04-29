@@ -17,6 +17,7 @@ use crate::cli::presentation::emit_json_or_text;
 use crate::cli::schema::{ExportArgs, ForgetArgs, PurgeArgs, RestoreArgs};
 
 use super::mutation_support::require_text_or_json;
+use super::notify::notify_app_refresh;
 use super::retrieval_support::normalize_retrieval_filters;
 use super::runtime::open_existing_db;
 
@@ -103,6 +104,7 @@ pub(in crate::cli) fn restore_snapshot(db_path: &Path, args: &RestoreArgs) -> Re
         OutputFormat::Text => print!("{}", render_restore_text(&output)),
         _ => unreachable!("unsupported restore format should be rejected earlier"),
     }
+    notify_app_refresh();
 
     Ok(())
 }
@@ -120,6 +122,7 @@ pub(in crate::cli) fn forget_snapshot(db_path: &Path, args: &ForgetArgs) -> Resu
         OutputFormat::Text => print!("{}", render_forget_text(&report)),
         _ => unreachable!("unsupported forget format should be rejected earlier"),
     }
+    notify_app_refresh();
 
     Ok(())
 }
@@ -136,6 +139,9 @@ pub(in crate::cli) fn purge_snapshots(db_path: &Path, args: &PurgeArgs) -> Resul
         OutputFormat::Human => print!("{}", render_purge_human(&report)),
         OutputFormat::Text => print!("{}", render_purge_text(&report)),
         _ => unreachable!("unsupported purge format should be rejected earlier"),
+    }
+    if !args.dry_run && report.snapshot_count() > 0 {
+        notify_app_refresh();
     }
 
     Ok(())

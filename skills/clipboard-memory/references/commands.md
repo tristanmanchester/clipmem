@@ -25,12 +25,21 @@ Pick the narrowest command that answers the question. Always pass `--format json
 15. `clipmem app settings show --format json` — inspect menu bar app preferences.
 16. `clipmem app settings set KEY VALUE --format json` / `clear KEY --format json` — change app-local preferences and bump app preference revision.
 17. `clipmem app launch-at-login show|set|clear --format json` — inspect or change the app-owned launch-at-login preference bridge.
-18. `clipmem app update-check show|clear --format json` — inspect or clear cached app update-check state.
-19. `clipmem agents context --format json` — one-call agent context: service health, settings, revision, stats, and capability summary.
-20. `clipmem ocr status --format json` — inspect local OCR queue and result counts.
-21. `clipmem ocr candidates --format json` — inspect pending OCR candidates without running OCR.
-22. `clipmem ocr get <raw-sha256> --format json` / `clear <raw-sha256> --format json` — inspect or clear one OCR result.
-23. `clipmem ocr run [--limit N] [--snapshot ID]` — backfill OCR for image snapshots.
+18. `clipmem app update-check show|run|clear --format json` — inspect, run, or clear app update-check state.
+19. `clipmem app quit --format json` — request the menu bar app to quit.
+20. `clipmem agents context --format json` — one-call agent context: generated_at, service health, settings, app state, recent activity metadata, revision, stats, privacy guidance, and capability summary.
+21. `clipmem ocr status --format json` — inspect local OCR queue and result counts.
+22. `clipmem ocr candidates --format json` — inspect pending OCR candidates without running OCR.
+23. `clipmem ocr get <raw-sha256> --format json` / `clear <raw-sha256> --format json` — inspect or clear one OCR result.
+24. `clipmem ocr run [--limit N] [--snapshot ID]` — backfill OCR for image snapshots.
+
+Primitive commands are the direct read/list/get/set/delete/start/stop surfaces
+above. Convenience workflows are still supported but should be classified
+honestly: `recall` ranks likely answers, `setup` composes initialization plus
+service startup, `ocr run` processes a bounded OCR batch, and
+`storage optimize-images` scans and rewrites eligible image rows. Use
+candidate, dry-run, or detail commands before broad workflow mutations when the
+user has not explicitly asked to proceed.
 
 ---
 
@@ -61,8 +70,9 @@ Pick the narrowest command that answers the question. Always pass `--format json
 | `app settings set` | text (`json` supported) | — | Set one menu bar app preference |
 | `app settings clear` | text (`json` supported) | — | Clear one menu bar app preference |
 | `app launch-at-login show/set/clear` | text (`json` supported) | — | Manage the app-owned launch-at-login preference bridge |
-| `app update-check show/clear` | text (`json` supported) | — | Show or clear cached app update-check state |
-| `agents context` | text (`json` supported) | — | Agent context bundle: health, settings, revision, stats, capabilities |
+| `app update-check show/run/clear` | text (`json` supported) | — | Show, run, or clear app update-check state |
+| `app quit` | text (`json` supported) | — | Request the menu bar app to quit |
+| `agents context` | text (`json` supported) | — | Agent context bundle: generated_at, health, settings, app state, recent activity, revision, stats, privacy, capabilities |
 | `ocr status` | text (`json` supported) | — | Local OCR queue and result counts |
 | `ocr candidates` | text (`json` supported) | — | Pending OCR candidate hashes without processing |
 | `ocr get` | text (`json` supported) | — | One OCR result by raw representation hash |
@@ -208,7 +218,7 @@ clipmem export <snapshot_id> --item <index> --uti <uti> --out <path> [--force]
 
 `restore` is macOS-only and writes the full stored item/UTI/raw-byte set back onto the general pasteboard. This is a whole-snapshot restore, not a text-only approximation.
 
-`export` writes raw bytes to `--out`. There is no `--format` flag. By default it creates a new file and refuses to replace an existing destination; pass `--force` only to replace an existing regular file. Symlink destinations are rejected. Required arguments: `--item` (0-based), `--uti` (e.g. `public.png`, `public.utf8-plain-text`, `com.adobe.pdf`), `--out`. Inspect `items[].representations[].uti` and `size_bytes` in a prior `get --format json` to choose the right combination.
+`export` writes raw bytes to `--out` and supports `--format json` for structured confirmation. By default it creates a new file and refuses to replace an existing destination; pass `--force` only to replace an existing regular file. Symlink destinations are rejected. Required arguments: `--item` (0-based), `--uti` (e.g. `public.png`, `public.utf8-plain-text`, `com.adobe.pdf`), `--out`. Inspect `items[].representations[].uti` and `size_bytes` in a prior `get --format json` to choose the right combination.
 
 ---
 
@@ -240,7 +250,9 @@ clipmem app launch-at-login show [--format json]
 clipmem app launch-at-login set on|off [--format json]
 clipmem app launch-at-login clear [--format json]
 clipmem app update-check show [--format json]
+clipmem app update-check run [--format json]
 clipmem app update-check clear [--format json]
+clipmem app quit [--format json]
 clipmem ocr status [--format json]
 clipmem ocr candidates [--limit N] [--snapshot ID] [--format json]
 clipmem ocr get <raw-sha256> [--format json]
@@ -258,7 +270,9 @@ clipmem ocr run [--limit N] [--snapshot ID] [--retry-failed] [--format json]
 
 `settings` is the persistent capture-policy entrypoint. Ignore matching is exact, case-insensitive bundle-id matching only. OCR is opt-in, runs locally through Apple Vision on macOS, and stores text/status separately from raw image bytes.
 
-`app settings`, `app launch-at-login`, and `app update-check` are menu bar app state bridges. They read and write app-local preferences without changing archive capture policy. Mutating commands bump `app_preferences_revision` so an open app can observe external agent changes. Launch-at-login writes the desired app-owned preference; the menu bar app applies it through `SMAppService`.
+`app settings`, `app launch-at-login`, and `app update-check` are menu bar app state bridges. They read and write app-local preferences without changing archive capture policy. Mutating commands bump `app_preferences_revision` so an open app can observe external agent changes. Launch-at-login writes the desired app-owned preference; the menu bar app applies it through `SMAppService`. `app update-check run` performs the live latest-stable-release lookup and updates the same cache the app reads. `app quit` requests the menu bar app to terminate through the app bundle identifier.
+
+`clipmem agents context --format json` is safe as a first call in agent sessions. It includes `generated_at`, service health, capture policy, archive revision, bounded recent activity, menu bar app state, capability discovery, and privacy guidance. It excludes raw clipboard content and representation bytes, but includes operational metadata such as app names, timestamps, counts, paths, and app preference state.
 
 ---
 

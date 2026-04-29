@@ -12,15 +12,22 @@ entity CRUD operations are supported, and which internal stores are
 excluded from CRUD scoring because they are derived or temporary state.
 
 Before multi-step work, run `clipmem agents context --format json` to collect a
-compact bundle with CLI version, database path, service health, capture policy,
-archive revision state, archive statistics, and a capability summary.
+compact bundle with CLI `clipmem_version`, `generated_at`, database path, service
+health, capture policy, archive revision state, archive statistics, app
+preferences, recent activity metadata, privacy guidance, and a capability
+summary. The context bundle is metadata-first: it does not include raw
+clipboard text or representation bytes, but it does include operational
+metadata such as app names, timestamps, counts, paths, and app preference state.
 
 Agents can inspect and change menu bar app preferences with
 `clipmem app settings show|set|clear --format json`, inspect or request
 launch-at-login changes with `clipmem app launch-at-login show|set|clear
---format json`, and inspect cached update-check state with `clipmem app
-update-check show --format json`. App-state mutations bump the app-preferences
-archive revision so an open menu bar app can refresh from external CLI changes.
+--format json`, run the same stable-release update lookup used by the app with
+`clipmem app update-check run --format json`, and quit the menu bar app with
+`clipmem app quit --format json`. App-state mutations bump the app-preferences
+archive revision and publish a best-effort macOS refresh notification so an
+open menu bar app can refresh from external CLI changes quickly while still
+using the revision ledger as the durable source of truth.
 
 ## Install the OpenClaw skill
 
@@ -113,6 +120,26 @@ commands with normal macOS shell primitives: pipe exact text to
 paths with `open -R`, or use `clipmem restore` when the whole stored
 pasteboard state should return to the clipboard. See the action parity
 map for the full outcome-to-command table.
+
+## Primitive commands vs workflows
+
+The skills and parity map distinguish primitive commands from
+convenience workflows:
+
+- Primitive reads include `search`, `recent`, `timeline`, `get`,
+  `stats`, `settings show`, `service status`, `service providers`,
+  `ocr candidates`, `ocr get`, `storage image-candidates`, `app
+  settings show`, `app launch-at-login show`, `app update-check show`,
+  `app update-check run`, and `agents context`.
+- Primitive mutations include `restore`, `forget`,
+  `settings pause|api-key-filter|ocr|retention|reset`, `settings
+  ignore add|remove`, `ocr clear`, `storage compact`, app preference
+  setters, launch-at-login setters, `app update-check clear`, and
+  `app quit`.
+- Convenience workflows such as `recall`, `setup`, `purge`, `ocr run`,
+  and `storage optimize-images` remain useful, but agents should verify
+  uncertain results or preview broad mutations with the corresponding
+  primitive read or dry-run commands.
 
 ## Manage the skill
 

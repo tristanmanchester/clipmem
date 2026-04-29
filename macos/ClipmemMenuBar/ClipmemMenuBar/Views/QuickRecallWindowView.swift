@@ -199,8 +199,8 @@ struct QuickRecallWindowView: View {
                 EmptyStateView(
                     title: "No matches found",
                     detail: displayMode == .search
-                        ? "Try different keywords or switch to \(searchStyle == .smart ? "Exact" : "Smart") mode."
-                        : "Try another query or switch modes.",
+                        ? "Try different keywords, switch to \(searchStyle == .smart ? "Exact" : "Smart") mode, or check agent context in Diagnostics."
+                        : "Try another mode or check agent context in Diagnostics.",
                     symbol: "magnifyingglass",
                     compact: true
                 )

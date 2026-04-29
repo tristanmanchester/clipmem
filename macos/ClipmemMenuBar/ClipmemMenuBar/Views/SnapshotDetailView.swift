@@ -40,7 +40,7 @@ struct SnapshotDetailView: View {
                 } else if isLoading {
                     loadingSkeleton
                 } else {
-                    EmptyStateView(title: "No Selection", detail: "Select a clipboard item to inspect it.", symbol: "sidebar.right")
+                    EmptyStateView(title: "No Selection", detail: "Select a clipboard item to inspect it, or use Diagnostics for agent context and setup commands.", symbol: "sidebar.right")
                 }
             }
             .padding()

@@ -256,8 +256,8 @@ struct HistoryWindowView: View {
                     EmptyStateView(
                         title: displayMode == .recent || displayMode == .timeline ? "No recent history" : "No results",
                         detail: displayMode == .recent || displayMode == .timeline
-                            ? "Start copying to build your clipboard history."
-                            : "Try adjusting your filters or search query.",
+                            ? "Start copying to build your clipboard history, or run clipmem agents context --format json to check capture health."
+                            : "Try adjusting your filters or use the agent context command in Diagnostics to check archive freshness.",
                         symbol: displayMode == .recent || displayMode == .timeline ? "clock" : "magnifyingglass"
                     )
                 }

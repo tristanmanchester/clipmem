@@ -211,6 +211,8 @@ const CLI_COMMAND_KEYWORDS: &[&str] = &[
     "app settings",
     "app launch-at-login",
     "app update-check",
+    "app update-check run",
+    "app quit",
     "ocr candidates",
     "ocr get",
     "ocr clear",
@@ -225,6 +227,8 @@ const CLI_COMMAND_KEYWORDS: &[&str] = &[
     "--cursor",
     "--format",
     "schema_version",
+    "generated_at",
+    "privacy",
 ];
 
 const KIND_VALUES: &[&str] = &[
@@ -238,6 +242,7 @@ const ACTION_PARITY_KEYWORDS: &[&str] = &[
     "docs/action-parity.md",
     "entity CRUD",
     "agent-accessible commands",
+    "Primitive command taxonomy",
 ];
 
 const BEHAVIOR_RULE_KEYWORDS: &[&str] = &[
@@ -248,13 +253,28 @@ const BEHAVIOR_RULE_KEYWORDS: &[&str] = &[
     "quote `best_text` verbatim",
     "pbcopy",
     "open -R",
+    "Primitive commands",
+    "Convenience workflows",
 ];
+
+const FORBIDDEN_DISCOVERY_DRIFT: &[&str] = &["`--has-file`", "There is no `--format` flag"];
 
 fn assert_contains_all(haystack: &str, needles: &[&str], where_: &Path) {
     for needle in needles {
         assert!(
             haystack.contains(needle),
             "{} is missing keyword '{}'",
+            where_.display(),
+            needle
+        );
+    }
+}
+
+fn assert_contains_none(haystack: &str, needles: &[&str], where_: &Path) {
+    for needle in needles {
+        assert!(
+            !haystack.contains(needle),
+            "{} contains stale/invalid discovery text '{}'",
             where_.display(),
             needle
         );
@@ -279,11 +299,13 @@ fn both_skills_document_full_cli_surface() {
         assert_contains_all(&skill, CLI_COMMAND_KEYWORDS, &skill_path);
         assert_contains_all(&skill, ACTION_PARITY_KEYWORDS, &skill_path);
         assert_contains_all(&skill, BEHAVIOR_RULE_KEYWORDS, &skill_path);
+        assert_contains_none(&skill, FORBIDDEN_DISCOVERY_DRIFT, &skill_path);
 
         // commands.md is the deep reference — it must cover kinds and exits.
         assert_contains_all(&commands, CLI_COMMAND_KEYWORDS, &commands_path);
         assert_contains_all(&commands, KIND_VALUES, &commands_path);
         assert_contains_all(&commands, EXIT_CODES, &commands_path);
+        assert_contains_none(&commands, FORBIDDEN_DISCOVERY_DRIFT, &commands_path);
     }
 }
 

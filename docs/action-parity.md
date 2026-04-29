@@ -14,7 +14,7 @@ documented app-owned command bridge.
 |---|---:|---|
 | Action parity | 100% | Every user-facing outcome has an agent path in this document. |
 | Tools as primitives | 100% | Primitive commands are documented separately from convenience workflows. |
-| Context injection | 100% | Agents have a documented context preflight command and refresh policy. |
+| Context injection | 100% | Agents have a documented context preflight command, refresh policy, app state, recent activity metadata, and privacy guidance. |
 | Shared workspace | 100% | CLI, app, watcher, and agents converge on the same archive path unless explicitly overridden. |
 | CRUD completeness | 100% | Product entities have supported operations or are documented as derived/internal non-entities. |
 | UI integration | 100% | External CLI mutations have an app-observable revision path. |
@@ -62,6 +62,7 @@ documented app-owned command bridge.
 | Backfill OCR | `clipmem ocr run --format json` | Covered |
 | Initialize capture | `clipmem setup` | Covered |
 | Manage watcher service | `clipmem service start|stop|status|uninstall` | Covered |
+| Inspect service providers | `clipmem service providers --format json` | Covered |
 | Run diagnostics | `clipmem doctor --json` | Covered |
 | Install or inspect agent skills | `clipmem agents openclaw ...`, `clipmem agents hermes ...` | Covered |
 | Copy recovered text only | `clipmem get ... --format json` followed by `pbcopy` | Covered by CLI + shell |
@@ -70,8 +71,59 @@ documented app-owned command bridge.
 | Read current agent context | `clipmem agents context --format json` | Covered |
 | Read/write menu bar app preferences | `clipmem app settings show|set|clear --format json` | Covered |
 | Read/write launch-at-login state | `clipmem app launch-at-login show|set|clear --format json` bridge | Covered |
-| Check app update state | `clipmem app update-check show|clear --format json` | Covered |
-| Observe external agent mutations in open UI | `clipmem service status --json` revision signal, app polling, and `clipmem agents context --format json` | Covered |
+| Check app update state | `clipmem app update-check show|run|clear --format json` | Covered |
+| Quit the menu bar app | `clipmem app quit --format json` | Covered |
+| Observe external agent mutations in open UI | `clipmem service status --json` revision signal, app polling, best-effort Darwin notifications, and `clipmem agents context --format json` | Covered |
+
+## Primitive command taxonomy
+
+Primitive commands expose one bounded read or mutation that agents can
+compose without relying on product-specific ranking or batch workflow
+judgment.
+
+| Area | Read primitives | Mutation primitives |
+|---|---|---|
+| Archive retrieval | `search`, `recent`, `timeline`, `get`, `stats`, `purge --dry-run` | `restore`, `forget` |
+| Archive bytes | `get`, `export` metadata from prior `get` | `export --out <path>` |
+| Capture policy | `settings show`, `settings ignore list` | `settings pause`, `settings api-key-filter`, `settings ocr`, `settings retention`, `settings reset`, `settings ignore add|remove` |
+| OCR | `ocr status`, `ocr candidates`, `ocr get` | `ocr clear`, `ocr run` |
+| Storage | `storage image-candidates`, `storage compact --dry-run`, `storage optimize-images --dry-run` | `storage compact`, `storage optimize-images` |
+| Service | `service status`, `service providers`, `doctor` | `setup`, `capture-once`, `service start|stop|uninstall` |
+| Menu bar app | `app settings show`, `app launch-at-login show`, `app update-check show`, `app update-check run`, `app quit` | `app settings set|clear`, `app launch-at-login set|clear`, `app update-check clear` |
+| Agent integration | `agents context`, `agents openclaw|hermes doctor`, `agents openclaw|hermes print-skill` | `agents openclaw|hermes install-skill|uninstall-skill` |
+
+Convenience workflows remain supported for human ergonomics and agent
+efficiency, but they are not the proof of primitive coverage:
+
+- `recall` ranks likely answers and packages alternatives. Agents should
+  treat it as a convenience ranking helper, then verify uncertain results
+  with `search`, `recent`, `timeline`, or `get`.
+- `setup` composes database initialization, one capture, and service
+  startup. Agents can still inspect the resulting state with `service
+  status`, `settings show`, and `agents context`.
+- `purge`, `ocr run`, and `storage optimize-images` are bounded batch
+  workflows with dry-run or candidate inspection commands where a preview
+  is meaningful.
+
+## Agent context contract
+
+`clipmem agents context --format json` is the preflight bundle for agent
+sessions. It intentionally avoids raw clipboard content and includes:
+
+- `generated_at` and CLI `clipmem_version` for freshness.
+- Database path and whether an archive snapshot was available.
+- Service health, provider state, and archive revision counters.
+- Capture settings and archive statistics.
+- Safe menu bar app state from `app settings`, `app launch-at-login`,
+  and `app update-check`.
+- Bounded recent activity metadata for the last 24 hours and 7 days.
+- Capability discovery grouped by retrieval, mutation, destructive,
+  app, service, OCR, storage, and skill integration commands.
+- Privacy guidance that the bundle excludes raw clipboard content while
+  still including operational metadata such as app names, timestamps,
+  counts, paths, and app preference state.
+- Guidance that content retrieval remains explicit through
+  `recall`, `search`, `recent`, `timeline`, `get`, or `export`.
 
 ## Entity CRUD contract
 
@@ -87,6 +139,9 @@ their lifecycle follows their source entity.
 | Ignored bundle ID | `settings ignore add` | `settings ignore list` | Remove plus add | `settings ignore remove` | Exact bundle IDs are normalized; rename has no extra semantics. |
 | OCR result | OCR enqueue/backfill | `ocr get <raw-sha256>` | OCR processing / retry | `ocr clear <raw-sha256>` | OCR text is derived from stored image bytes. |
 | App preference | App default values / first `clipmem app settings set` | `clipmem app settings show` | `clipmem app settings set <key> <value>` | `clipmem app settings clear <key>` | App-local, not archive policy. |
+| App update-check cache | App update check | `clipmem app update-check show` | `clipmem app update-check run` | `clipmem app update-check clear` | App-local state mirrors the menu bar update checker. |
+| Launch-at-login bridge | App default values / first `clipmem app launch-at-login set` | `clipmem app launch-at-login show` | `clipmem app launch-at-login set on|off` | `clipmem app launch-at-login clear` | CLI stores desired state; the menu bar app applies it through `SMAppService`. |
+| Agent skill installation | `agents openclaw|hermes install-skill` | `agents openclaw|hermes doctor`, `print-skill` | `install-skill --force` | `agents openclaw|hermes uninstall-skill` | Skill package files live in the target agent runtime. |
 
 Non-entities for CRUD scoring:
 
@@ -97,6 +152,8 @@ Non-entities for CRUD scoring:
 - `snapshot_ocr_cache`
 - FTS virtual tables
 - `pending_restores`
+- `archive_revisions`
+- App `didConfigureLaunchAtLogin` and `didInstallSelfIgnore` flags
 
 These stores are internal, derived, or temporary control state. Their
 correctness is tested through source entity behavior and cache

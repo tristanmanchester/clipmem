@@ -8,6 +8,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::db::{CaptureStoreOutcome, Database};
 use crate::platform::capture_snapshot;
 
+use crate::cli::commands::notify::notify_app_refresh;
+
 use super::context::{build_context, conflict_message, ensure_supported, select_provider};
 use super::launchctl::{
     ensure_parent_dir, launchctl_bootout, launchctl_bootstrap, launchctl_disable, launchctl_enable,
@@ -25,6 +27,7 @@ pub(crate) fn setup(db_path: &Path) -> Result<SetupReport> {
     let seed_capture = seed_capture(db_path)?;
     let action = start_with_provider(&context, &selection)?;
     bump_service_revision(db_path)?;
+    notify_app_refresh();
     Ok(SetupReport {
         seed_capture,
         action,
@@ -39,6 +42,7 @@ pub(crate) fn start(db_path: &Path) -> Result<ServiceActionReport> {
     ensure_no_conflict(&status)?;
     let report = start_with_provider(&context, &selection)?;
     bump_service_revision(db_path)?;
+    notify_app_refresh();
     Ok(report)
 }
 
@@ -56,6 +60,7 @@ pub(crate) fn stop(db_path: &Path) -> Result<ServiceActionReport> {
         stop_direct_provider(&context)?
     };
     bump_service_revision(db_path)?;
+    notify_app_refresh();
     Ok(report)
 }
 
@@ -73,6 +78,7 @@ pub(crate) fn uninstall(db_path: &Path) -> Result<ServiceActionReport> {
         uninstall_direct_provider(&context)?
     };
     bump_service_revision(db_path)?;
+    notify_app_refresh();
     Ok(report)
 }
 

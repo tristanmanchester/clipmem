@@ -275,3 +275,142 @@ fn app_update_check_show_and_clear_cached_state() -> Result<()> {
     cleanup_temp_artifact(&store_path);
     Ok(())
 }
+
+#[test]
+fn app_update_check_run_refreshes_cached_state_and_bumps_revision() -> Result<()> {
+    let path = temp_db_path("app-update-check-run");
+    let store_path = temp_artifact_path("app-update-check-run", ".json");
+    let envs = vec![
+        (
+            "CLIPMEM_APP_SETTINGS_STORE".to_string(),
+            store_path.display().to_string(),
+        ),
+        (
+            "CLIPMEM_UPDATE_CHECK_RESPONSE".to_string(),
+            r#"{
+  "tag_name": "v999.0.0",
+  "html_url": "https://github.com/tristanmanchester/clipmem/releases/tag/v999.0.0",
+  "prerelease": false,
+  "draft": false
+}"#
+            .to_string(),
+        ),
+    ];
+
+    let run = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "update-check",
+            "run",
+            "--format",
+            "json",
+        ],
+        &envs,
+    );
+    let payload: Value =
+        serde_json::from_slice(&run.stdout).expect("update-check run JSON should parse");
+    let db = Database::open_existing(&path)?;
+
+    assert!(run.status.success(), "{}", stderr_text(&run));
+    assert_eq!(payload["latest_version"].as_str(), Some("v999.0.0"));
+    assert_eq!(
+        payload["release_url"].as_str(),
+        Some("https://github.com/tristanmanchester/clipmem/releases/tag/v999.0.0")
+    );
+    assert_eq!(payload["is_update_available"].as_bool(), Some(true));
+    assert!(payload["last_checked_at_unix"].as_f64().is_some());
+    assert_eq!(db.archive_revision()?.app_preferences_revision(), 1);
+
+    cleanup_db(&path);
+    cleanup_temp_artifact(&store_path);
+    Ok(())
+}
+
+#[test]
+fn app_update_check_run_rejects_network_errors_without_clearing_cache() -> Result<()> {
+    let path = temp_db_path("app-update-check-run-error");
+    let store_path = temp_artifact_path("app-update-check-run-error", ".json");
+    fs::write(
+        &store_path,
+        r#"{
+  "cachedLatestVersion": "v888.0.0",
+  "cachedLatestReleaseURL": "https://example.com/release",
+  "lastUpdateCheckAt": 1700000000.0
+}"#,
+    )
+    .expect("write app settings cache");
+    let envs = vec![
+        (
+            "CLIPMEM_APP_SETTINGS_STORE".to_string(),
+            store_path.display().to_string(),
+        ),
+        (
+            "CLIPMEM_UPDATE_CHECK_RESPONSE".to_string(),
+            "not json".to_string(),
+        ),
+    ];
+
+    let run = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "update-check",
+            "run",
+            "--format",
+            "json",
+        ],
+        &envs,
+    );
+    assert!(!run.status.success());
+    assert!(stderr_text(&run).contains("parse update check response"));
+
+    let show = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "update-check",
+            "show",
+            "--format",
+            "json",
+        ],
+        &envs[..1],
+    );
+    let payload: Value =
+        serde_json::from_slice(&show.stdout).expect("update-check show JSON should parse");
+    assert!(show.status.success(), "{}", stderr_text(&show));
+    assert_eq!(payload["latest_version"].as_str(), Some("v888.0.0"));
+
+    cleanup_db(&path);
+    cleanup_temp_artifact(&store_path);
+    Ok(())
+}
+
+#[test]
+fn app_quit_reports_request_with_test_override() -> Result<()> {
+    let path = temp_db_path("app-quit");
+    let envs = vec![("CLIPMEM_APP_QUIT_SKIP_OS".to_string(), "1".to_string())];
+
+    let output = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "quit",
+            "--format",
+            "json",
+        ],
+        &envs,
+    );
+    let payload: Value = serde_json::from_slice(&output.stdout).expect("quit JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert_eq!(payload["requested"].as_bool(), Some(true));
+    assert_eq!(payload["method"].as_str(), Some("test_override"));
+
+    cleanup_db(&path);
+    Ok(())
+}

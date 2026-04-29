@@ -5,19 +5,26 @@ use serde::Serialize;
 
 use crate::cli::formats::OutputFormat;
 use crate::cli::output::print_json;
+use crate::cli::presentation::generated_at_now;
 use crate::cli::service::{status_report, ServiceStatusReport};
-use crate::db::{ArchiveRevision, Database, RetrievalFilters};
+use crate::db::{ArchiveRevision, Database, RetrievalFilters, StatsReport};
+
+use super::super::app::{load_app_settings, load_launch_at_login, load_update_check};
 
 #[derive(Debug, Serialize)]
 struct AgentContextOutput {
     schema_version: u32,
+    generated_at: String,
     clipmem_version: &'static str,
     db_path: String,
     db_exists: bool,
     service: AgentServiceSummary,
     settings: AgentSettingsSummary,
+    app: AgentAppSummary,
     revision: Option<ArchiveRevision>,
     stats: Option<AgentStatsSummary>,
+    recent_activity: Option<AgentRecentActivitySummary>,
+    privacy: AgentPrivacySummary,
     capabilities: AgentCapabilitySummary,
 }
 
@@ -51,10 +58,88 @@ struct AgentStatsSummary {
 }
 
 #[derive(Debug, Serialize)]
+struct AgentAppSummary {
+    settings: AgentAppSettingsSummary,
+    launch_at_login: AgentLaunchAtLoginSummary,
+    update_check: AgentUpdateCheckSummary,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentAppSettingsSummary {
+    binary_path_override: Option<String>,
+    database_path_override: Option<String>,
+    default_recent_hours: u32,
+    default_query_mode: String,
+    hotkey_enabled: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentLaunchAtLoginSummary {
+    desired_enabled: Option<bool>,
+    did_configure: bool,
+    status: &'static str,
+    requires_app_apply: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentUpdateCheckSummary {
+    current_version: &'static str,
+    latest_version: Option<String>,
+    release_url: Option<String>,
+    last_checked_at_unix: Option<f64>,
+    is_update_available: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentRecentActivitySummary {
+    last_24h: AgentActivityWindowSummary,
+    last_7d: AgentActivityWindowSummary,
+    has_ocr_text: bool,
+    has_images: bool,
+    has_pdfs: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentActivityWindowSummary {
+    hours: u32,
+    snapshot_count: usize,
+    capture_event_count: usize,
+    unique_app_count: usize,
+    latest_observed_at: Option<String>,
+    top_apps: Vec<AgentTopAppSummary>,
+    kind_breakdown: Vec<AgentKindSummary>,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentTopAppSummary {
+    app: String,
+    capture_event_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentKindSummary {
+    kind: String,
+    snapshot_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentPrivacySummary {
+    includes_raw_clipboard_content: bool,
+    includes_metadata: &'static [&'static str],
+    content_retrieval_commands: &'static [&'static str],
+    note: &'static str,
+}
+
+#[derive(Debug, Serialize)]
 struct AgentCapabilitySummary {
     primary_retrieval: &'static [&'static str],
+    primitive_reads: &'static [&'static str],
     mutation: &'static [&'static str],
     maintenance: &'static [&'static str],
+    app_state: &'static [&'static str],
+    service: &'static [&'static str],
+    agent_integration: &'static [&'static str],
+    destructive_commands: &'static [&'static str],
     stable_formats: &'static [&'static str],
     action_parity_doc: &'static str,
 }
@@ -78,18 +163,20 @@ pub(in crate::cli) fn agent_context(db_path: &Path, format: OutputFormat) -> Res
 
 fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
     let status = status_report(db_path)?;
+    let generated_at = generated_at_now()?;
     let db_snapshot = if db_path.is_file() {
         let db = Database::open_existing(db_path)?;
         Some((
             db.archive_revision()?,
             db.stats(&RetrievalFilters::default())?,
+            build_recent_activity(&db)?,
         ))
     } else {
         None
     };
 
-    let (revision, stats) = db_snapshot
-        .map(|(revision, stats)| {
+    let (revision, stats, recent_activity) = db_snapshot
+        .map(|(revision, stats, recent_activity)| {
             (
                 Some(revision),
                 Some(AgentStatsSummary {
@@ -99,12 +186,18 @@ fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
                     total_bytes: stats.total_bytes(),
                     last_observed_at: stats.last_observed_at().map(ToOwned::to_owned),
                 }),
+                Some(recent_activity),
             )
         })
-        .unwrap_or((None, None));
+        .unwrap_or((None, None, None));
+
+    let app_settings = load_app_settings()?;
+    let launch_at_login = load_launch_at_login()?;
+    let update_check = load_update_check()?;
 
     Ok(AgentContextOutput {
         schema_version: 1,
+        generated_at,
         clipmem_version: env!("CARGO_PKG_VERSION"),
         db_path: db_path.display().to_string(),
         db_exists: status.db_exists,
@@ -124,22 +217,195 @@ fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
             retention: status.retention,
             ignored_bundle_id_count: status.ignored_bundle_id_count,
         },
+        app: AgentAppSummary {
+            settings: AgentAppSettingsSummary {
+                binary_path_override: nonempty_option(app_settings.binary_path_override),
+                database_path_override: nonempty_option(app_settings.database_path_override),
+                default_recent_hours: app_settings.default_recent_hours,
+                default_query_mode: app_settings.default_query_mode,
+                hotkey_enabled: app_settings.hotkey_enabled,
+            },
+            launch_at_login: AgentLaunchAtLoginSummary {
+                desired_enabled: launch_at_login.desired_enabled,
+                did_configure: launch_at_login.did_configure,
+                status: launch_at_login.status,
+                requires_app_apply: launch_at_login.requires_app_apply,
+            },
+            update_check: AgentUpdateCheckSummary {
+                current_version: update_check.current_version,
+                latest_version: update_check.latest_version,
+                release_url: update_check.release_url,
+                last_checked_at_unix: update_check.last_checked_at_unix,
+                is_update_available: update_check.is_update_available,
+            },
+        },
         revision,
         stats,
+        recent_activity,
+        privacy: AgentPrivacySummary {
+            includes_raw_clipboard_content: false,
+            includes_metadata: &[
+                "database path",
+                "service health",
+                "capture settings",
+                "revision counters",
+                "archive statistics",
+                "recent activity counts",
+                "top app names",
+                "content kind counts",
+                "menu bar app preferences",
+                "update-check cache",
+            ],
+            content_retrieval_commands: &[
+                "recall", "search", "recent", "timeline", "get", "export",
+            ],
+            note: "Context excludes raw clipboard content but includes operational metadata such as app names, timestamps, counts, paths, and app preference state. Run retrieval commands explicitly for clipboard content.",
+        },
         capabilities: AgentCapabilitySummary {
             primary_retrieval: &["recall", "timeline", "recent", "search", "get"],
-            mutation: &["restore", "export", "forget", "purge", "settings"],
+            primitive_reads: &[
+                "agents context",
+                "service status",
+                "service providers",
+                "settings show",
+                "settings ignore list",
+                "stats",
+                "storage image-candidates",
+                "ocr status",
+                "ocr candidates",
+                "ocr get",
+                "app settings show",
+                "app launch-at-login show",
+                "app update-check show",
+            ],
+            mutation: &[
+                "restore",
+                "export",
+                "forget",
+                "purge",
+                "settings pause",
+                "settings api-key-filter",
+                "settings ocr",
+                "settings retention",
+                "settings reset",
+                "settings ignore add",
+                "settings ignore remove",
+                "ocr clear",
+            ],
             maintenance: &[
                 "doctor",
-                "service status",
+                "capture-once",
+                "watch",
                 "storage compact",
+                "storage image-candidates",
                 "storage optimize-images",
                 "ocr run",
+            ],
+            app_state: &[
+                "app settings show",
+                "app settings set",
+                "app settings clear",
+                "app launch-at-login show",
+                "app launch-at-login set",
+                "app launch-at-login clear",
+                "app update-check show",
+                "app update-check run",
+                "app update-check clear",
+                "app quit",
+            ],
+            service: &[
+                "setup",
+                "service providers",
+                "service status",
+                "service start",
+                "service stop",
+                "service uninstall",
+            ],
+            agent_integration: &[
+                "agents context",
+                "agents openclaw doctor",
+                "agents openclaw install-skill",
+                "agents openclaw print-skill",
+                "agents openclaw uninstall-skill",
+                "agents hermes doctor",
+                "agents hermes install-skill",
+                "agents hermes print-skill",
+                "agents hermes uninstall-skill",
+            ],
+            destructive_commands: &[
+                "forget",
+                "purge --dry-run first",
+                "settings reset",
+                "ocr clear",
+                "app settings clear",
+                "app update-check clear",
             ],
             stable_formats: &["json", "jsonl", "toon"],
             action_parity_doc: "docs/action-parity.md",
         },
     })
+}
+
+fn nonempty_option(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(value)
+        }
+    })
+}
+
+fn build_recent_activity(db: &Database) -> Result<AgentRecentActivitySummary> {
+    let last_24h = activity_window(db, 24)?;
+    let last_7d = activity_window(db, 24 * 7)?;
+    let image_stats = db.stats(&RetrievalFilters::default().requiring_image())?;
+    let pdf_stats = db.stats(&RetrievalFilters::default().requiring_pdf())?;
+    let ocr_status = db.ocr_status_report()?;
+    Ok(AgentRecentActivitySummary {
+        last_24h,
+        last_7d,
+        has_ocr_text: ocr_status.snapshots_with_ocr_text() > 0,
+        has_images: image_stats.snapshot_count() > 0,
+        has_pdfs: pdf_stats.snapshot_count() > 0,
+    })
+}
+
+fn activity_window(db: &Database, hours: u32) -> Result<AgentActivityWindowSummary> {
+    let stats = db.stats(&RetrievalFilters::default().with_hours(Some(hours)))?;
+    Ok(AgentActivityWindowSummary {
+        hours,
+        snapshot_count: stats.snapshot_count(),
+        capture_event_count: stats.capture_event_count(),
+        unique_app_count: stats.unique_app_count(),
+        latest_observed_at: stats.last_observed_at().map(ToOwned::to_owned),
+        top_apps: top_apps(&stats),
+        kind_breakdown: kind_breakdown(&stats),
+    })
+}
+
+fn top_apps(stats: &StatsReport) -> Vec<AgentTopAppSummary> {
+    stats
+        .top_apps()
+        .iter()
+        .take(5)
+        .map(|entry| AgentTopAppSummary {
+            app: entry.app().to_string(),
+            capture_event_count: entry.capture_event_count(),
+        })
+        .collect()
+}
+
+fn kind_breakdown(stats: &StatsReport) -> Vec<AgentKindSummary> {
+    stats
+        .kind_breakdown()
+        .iter()
+        .map(|entry| AgentKindSummary {
+            kind: entry.kind().as_str().to_string(),
+            snapshot_count: entry.snapshot_count(),
+        })
+        .collect()
 }
 
 fn service_health_label(status: &ServiceStatusReport) -> &'static str {
@@ -173,7 +439,8 @@ fn service_health_label(status: &ServiceStatusReport) -> &'static str {
 fn render_agent_context_text(context: &AgentContextOutput) -> String {
     let mut out = String::new();
     out.push_str("clipmem agent context\n");
-    out.push_str(&format!("version: {}\n", context.clipmem_version));
+    out.push_str(&format!("generated_at: {}\n", context.generated_at));
+    out.push_str(&format!("clipmem_version: {}\n", context.clipmem_version));
     out.push_str(&format!("db_path: {}\n", context.db_path));
     out.push_str(&format!("db_exists: {}\n", context.db_exists));
     out.push_str(&format!("health: {}\n", context.service.health));
@@ -193,8 +460,50 @@ fn render_agent_context_text(context: &AgentContextOutput) -> String {
         out.push_str(&format!("snapshots: {}\n", stats.snapshot_count));
         out.push_str(&format!("capture_events: {}\n", stats.capture_event_count));
     }
-    out.push_str("retrieval: recall, timeline, recent, search, get\n");
-    out.push_str("mutations: restore, export, forget, purge, settings\n");
-    out.push_str("action_parity_doc: docs/action-parity.md\n");
+    out.push_str(&format!(
+        "app_default_query_mode: {}\n",
+        context.app.settings.default_query_mode
+    ));
+    out.push_str(&format!("privacy: {}\n", context.privacy.note));
+    out.push_str(&format!(
+        "retrieval: {}\n",
+        context.capabilities.primary_retrieval.join(", ")
+    ));
+    out.push_str(&format!(
+        "primitive_reads: {}\n",
+        context.capabilities.primitive_reads.join(", ")
+    ));
+    out.push_str(&format!(
+        "mutations: {}\n",
+        context.capabilities.mutation.join(", ")
+    ));
+    out.push_str(&format!(
+        "maintenance: {}\n",
+        context.capabilities.maintenance.join(", ")
+    ));
+    out.push_str(&format!(
+        "app_state: {}\n",
+        context.capabilities.app_state.join(", ")
+    ));
+    out.push_str(&format!(
+        "service: {}\n",
+        context.capabilities.service.join(", ")
+    ));
+    out.push_str(&format!(
+        "agent_integration: {}\n",
+        context.capabilities.agent_integration.join(", ")
+    ));
+    out.push_str(&format!(
+        "destructive_commands: {}\n",
+        context.capabilities.destructive_commands.join(", ")
+    ));
+    out.push_str(&format!(
+        "stable_formats: {}\n",
+        context.capabilities.stable_formats.join(", ")
+    ));
+    out.push_str(&format!(
+        "action_parity_doc: {}\n",
+        context.capabilities.action_parity_doc
+    ));
     out
 }

@@ -1,20 +1,24 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::cli::formats::{OutputFormat, ToggleState};
 use crate::cli::presentation::emit_json_or_text;
 use crate::cli::schema::{
     AppArgs, AppCommand, AppLaunchAtLoginArgs, AppLaunchAtLoginClearArgs, AppLaunchAtLoginCommand,
-    AppLaunchAtLoginSetArgs, AppLaunchAtLoginShowArgs, AppPreferenceKey, AppSettingsArgs,
-    AppSettingsClearArgs, AppSettingsCommand, AppSettingsSetArgs, AppSettingsShowArgs,
-    AppUpdateCheckArgs, AppUpdateCheckClearArgs, AppUpdateCheckCommand, AppUpdateCheckShowArgs,
+    AppLaunchAtLoginSetArgs, AppLaunchAtLoginShowArgs, AppPreferenceKey, AppQuitArgs,
+    AppSettingsArgs, AppSettingsClearArgs, AppSettingsCommand, AppSettingsSetArgs,
+    AppSettingsShowArgs, AppUpdateCheckArgs, AppUpdateCheckClearArgs, AppUpdateCheckCommand,
+    AppUpdateCheckRunArgs, AppUpdateCheckShowArgs,
 };
 use crate::db::Database;
+
+use super::notify::notify_app_refresh;
 
 const APP_DOMAIN: &str = "io.openclaw.clipmem.menubar";
 const LAUNCH_AT_LOGIN_ENABLED_KEY: &str = "launchAtLoginEnabled";
@@ -22,33 +26,50 @@ const DID_CONFIGURE_LAUNCH_AT_LOGIN_KEY: &str = "didConfigureLaunchAtLogin";
 const CACHED_LATEST_VERSION_KEY: &str = "cachedLatestVersion";
 const CACHED_LATEST_RELEASE_URL_KEY: &str = "cachedLatestReleaseURL";
 const LAST_UPDATE_CHECK_AT_KEY: &str = "lastUpdateCheckAt";
+const UPDATE_CHECK_URL: &str =
+    "https://api.github.com/repos/tristanmanchester/clipmem/releases/latest";
 
 #[derive(Debug, Clone, Serialize)]
-struct AppSettingsOutput {
-    binary_path_override: Option<String>,
-    database_path_override: Option<String>,
-    default_recent_hours: u32,
-    default_query_mode: String,
-    hotkey_enabled: bool,
+pub(in crate::cli::commands) struct AppSettingsOutput {
+    pub(in crate::cli::commands) binary_path_override: Option<String>,
+    pub(in crate::cli::commands) database_path_override: Option<String>,
+    pub(in crate::cli::commands) default_recent_hours: u32,
+    pub(in crate::cli::commands) default_query_mode: String,
+    pub(in crate::cli::commands) hotkey_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct AppLaunchAtLoginOutput {
-    desired_enabled: Option<bool>,
-    did_configure: bool,
-    status: &'static str,
-    requires_app_apply: bool,
-    bridge: &'static str,
+pub(in crate::cli::commands) struct AppLaunchAtLoginOutput {
+    pub(in crate::cli::commands) desired_enabled: Option<bool>,
+    pub(in crate::cli::commands) did_configure: bool,
+    pub(in crate::cli::commands) status: &'static str,
+    pub(in crate::cli::commands) requires_app_apply: bool,
+    pub(in crate::cli::commands) bridge: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct AppUpdateCheckOutput {
-    current_version: &'static str,
-    latest_version: Option<String>,
-    release_url: Option<String>,
-    last_checked_at_unix: Option<f64>,
-    is_update_available: bool,
-    install_command: &'static str,
+pub(in crate::cli::commands) struct AppUpdateCheckOutput {
+    pub(in crate::cli::commands) current_version: &'static str,
+    pub(in crate::cli::commands) latest_version: Option<String>,
+    pub(in crate::cli::commands) release_url: Option<String>,
+    pub(in crate::cli::commands) last_checked_at_unix: Option<f64>,
+    pub(in crate::cli::commands) is_update_available: bool,
+    pub(in crate::cli::commands) install_command: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AppQuitOutput {
+    requested: bool,
+    method: &'static str,
+    note: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    html_url: String,
+    prerelease: bool,
+    draft: bool,
 }
 
 pub(in crate::cli) fn app(db_path: &Path, args: &AppArgs) -> Result<()> {
@@ -56,6 +77,7 @@ pub(in crate::cli) fn app(db_path: &Path, args: &AppArgs) -> Result<()> {
         AppCommand::Settings(args) => app_settings(db_path, args),
         AppCommand::LaunchAtLogin(args) => app_launch_at_login(db_path, args),
         AppCommand::UpdateCheck(args) => app_update_check(db_path, args),
+        AppCommand::Quit(args) => app_quit(args),
     }
 }
 
@@ -150,12 +172,40 @@ fn app_launch_at_login_clear(db_path: &Path, args: &AppLaunchAtLoginClearArgs) -
 fn app_update_check(db_path: &Path, args: &AppUpdateCheckArgs) -> Result<()> {
     match &args.command {
         AppUpdateCheckCommand::Show(args) => app_update_check_show(args),
+        AppUpdateCheckCommand::Run(args) => app_update_check_run(db_path, args),
         AppUpdateCheckCommand::Clear(args) => app_update_check_clear(db_path, args),
     }
 }
 
 fn app_update_check_show(args: &AppUpdateCheckShowArgs) -> Result<()> {
     let format = require_app_settings_format(args.output.resolved()?)?;
+    let output = load_update_check()?;
+    emit_json_or_text(
+        format == OutputFormat::Json,
+        &output,
+        render_update_check_text,
+    )
+}
+
+fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<()> {
+    let format = require_app_settings_format(args.output.resolved()?)?;
+    let release = fetch_latest_release()?;
+    let checked_at = unix_timestamp_now()?;
+    match release {
+        Some(release) => {
+            set_named_preference(CACHED_LATEST_VERSION_KEY, Value::String(release.tag_name))?;
+            set_named_preference(
+                CACHED_LATEST_RELEASE_URL_KEY,
+                Value::String(release.html_url),
+            )?;
+        }
+        None => {
+            clear_named_preference(CACHED_LATEST_VERSION_KEY)?;
+            clear_named_preference(CACHED_LATEST_RELEASE_URL_KEY)?;
+        }
+    }
+    set_named_preference(LAST_UPDATE_CHECK_AT_KEY, Value::from(checked_at))?;
+    bump_app_preferences_revision(db_path)?;
     let output = load_update_check()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -178,6 +228,12 @@ fn app_update_check_clear(db_path: &Path, args: &AppUpdateCheckClearArgs) -> Res
     )
 }
 
+fn app_quit(args: &AppQuitArgs) -> Result<()> {
+    let format = require_app_settings_format(args.output.resolved()?)?;
+    let output = request_menu_bar_app_quit()?;
+    emit_json_or_text(format == OutputFormat::Json, &output, render_quit_text)
+}
+
 fn require_app_settings_format(format: OutputFormat) -> Result<OutputFormat> {
     match format {
         OutputFormat::Text | OutputFormat::Json | OutputFormat::Human => Ok(format),
@@ -189,7 +245,7 @@ fn require_app_settings_format(format: OutputFormat) -> Result<OutputFormat> {
     }
 }
 
-fn load_app_settings() -> Result<AppSettingsOutput> {
+pub(in crate::cli::commands) fn load_app_settings() -> Result<AppSettingsOutput> {
     Ok(AppSettingsOutput {
         binary_path_override: read_string(AppPreferenceKey::BinaryPathOverride)?,
         database_path_override: read_string(AppPreferenceKey::DatabasePathOverride)?,
@@ -200,7 +256,7 @@ fn load_app_settings() -> Result<AppSettingsOutput> {
     })
 }
 
-fn load_launch_at_login() -> Result<AppLaunchAtLoginOutput> {
+pub(in crate::cli::commands) fn load_launch_at_login() -> Result<AppLaunchAtLoginOutput> {
     let desired_enabled =
         read_named_preference(LAUNCH_AT_LOGIN_ENABLED_KEY)?.and_then(|value| value.as_bool());
     let did_configure = read_named_preference(DID_CONFIGURE_LAUNCH_AT_LOGIN_KEY)?
@@ -220,7 +276,7 @@ fn load_launch_at_login() -> Result<AppLaunchAtLoginOutput> {
     })
 }
 
-fn load_update_check() -> Result<AppUpdateCheckOutput> {
+pub(in crate::cli::commands) fn load_update_check() -> Result<AppUpdateCheckOutput> {
     let latest_version = read_named_preference(CACHED_LATEST_VERSION_KEY)?
         .and_then(|value| value.as_str().map(ToOwned::to_owned));
     let release_url = read_named_preference(CACHED_LATEST_RELEASE_URL_KEY)?
@@ -240,6 +296,80 @@ fn load_update_check() -> Result<AppUpdateCheckOutput> {
         last_checked_at_unix,
         is_update_available,
         install_command: "brew update && brew upgrade tristanmanchester/tap/clipmem && brew upgrade --cask tristanmanchester/tap/clipmem-app",
+    })
+}
+
+fn fetch_latest_release() -> Result<Option<GitHubRelease>> {
+    let raw = if let Ok(raw) = std::env::var("CLIPMEM_UPDATE_CHECK_RESPONSE") {
+        raw
+    } else {
+        let output = Command::new("curl")
+            .args([
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--max-time",
+                "8",
+                "-H",
+                "Accept: application/vnd.github+json",
+                "-H",
+                "User-Agent: clipmem-cli-update-checker",
+                UPDATE_CHECK_URL,
+            ])
+            .output()
+            .context("run curl for update check")?;
+        if !output.status.success() {
+            bail!(
+                "update check failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        String::from_utf8(output.stdout).context("decode update check response")?
+    };
+
+    let release: GitHubRelease =
+        serde_json::from_str(&raw).context("parse update check response")?;
+    if release.draft || release.prerelease || parse_stable_version(&release.tag_name).is_none() {
+        return Ok(None);
+    }
+    Ok(Some(release))
+}
+
+fn unix_timestamp_now() -> Result<f64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system time before Unix epoch")?
+        .as_secs_f64())
+}
+
+fn request_menu_bar_app_quit() -> Result<AppQuitOutput> {
+    if std::env::var_os("CLIPMEM_APP_QUIT_SKIP_OS").is_some() {
+        return Ok(AppQuitOutput {
+            requested: true,
+            method: "test_override",
+            note: "Quit request skipped by CLIPMEM_APP_QUIT_SKIP_OS.".to_string(),
+        });
+    }
+
+    let output = Command::new("osascript")
+        .args([
+            "-e",
+            "tell application id \"io.openclaw.clipmem.menubar\" to quit",
+        ])
+        .output()
+        .context("request menu bar app quit with osascript")?;
+    if !output.status.success() {
+        bail!(
+            "quit request failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    Ok(AppQuitOutput {
+        requested: true,
+        method: "osascript_bundle_id",
+        note: "Requested menu bar app termination by bundle identifier.".to_string(),
     })
 }
 
@@ -424,7 +554,9 @@ fn bump_app_preferences_revision(db_path: &Path) -> Result<()> {
     Database::open_or_init(db_path)?
         .bump_app_preferences_revision()
         .map(|_| ())
-        .context("record app preference revision")
+        .context("record app preference revision")?;
+    notify_app_refresh();
+    Ok(())
 }
 
 fn render_app_settings_text(output: &AppSettingsOutput) -> String {
@@ -464,6 +596,13 @@ fn render_update_check_text(output: &AppUpdateCheckOutput) -> String {
             .unwrap_or_default(),
         output.is_update_available,
         output.install_command
+    )
+}
+
+fn render_quit_text(output: &AppQuitOutput) -> String {
+    format!(
+        "requested={}\nmethod={}\nnote={}\n",
+        output.requested, output.method, output.note
     )
 }
 

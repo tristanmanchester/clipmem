@@ -35,7 +35,9 @@ struct CommandConstructionTests {
         #expect(ClipmemCommand.appLaunchAtLoginSet(false).arguments == ["app", "launch-at-login", "set", "off", "--format", "json"])
         #expect(ClipmemCommand.appLaunchAtLoginClear().arguments == ["app", "launch-at-login", "clear", "--format", "json"])
         #expect(ClipmemCommand.appUpdateCheckShow().arguments == ["app", "update-check", "show", "--format", "json"])
+        #expect(ClipmemCommand.appUpdateCheckRun().arguments == ["app", "update-check", "run", "--format", "json"])
         #expect(ClipmemCommand.appUpdateCheckClear().arguments == ["app", "update-check", "clear", "--format", "json"])
+        #expect(ClipmemCommand.appQuit().arguments == ["app", "quit", "--format", "json"])
     }
 
     @Test func filtersAppendExpectedFlags() {

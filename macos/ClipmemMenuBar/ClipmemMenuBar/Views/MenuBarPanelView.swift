@@ -134,7 +134,7 @@ struct MenuBarPanelView: View {
         } else if appModel.recentPreview.isEmpty && !appModel.isRefreshing {
             EmptyStateView(
                 title: "Start copying",
-                detail: "Items appear here automatically.",
+                detail: "Items appear here automatically. Check Diagnostics for agent context when capture looks stale.",
                 symbol: "clipboard",
                 compact: true
             )

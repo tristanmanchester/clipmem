@@ -1,7 +1,7 @@
 ---
 name: clipboard-memory
 description: Recall what the user copied on this Mac via the local clipmem archive: exact text, commands, SQL, URLs, file paths, HTML, images, and PDFs. Trigger on requests like "what was that command I copied?", "paste back that SQL", "the URL I copied from Safari", "show me what I copied from Xcode today", "find the snippet/path/link from before I restarted", and indirect paraphrases about clipboard history or recovering copied content. Prefer this over web, repo, or filesystem search only when the target was likely copied.
-version: "1.3.1"
+version: "1.3.3"
 license: MIT
 platforms: [macos]
 metadata:
@@ -62,7 +62,7 @@ say "clipboard", "copy", or "paste".
    - snapshot id already known -> `get`
    - binary / image / PDF recovery -> `get` then `export`
 4. Add only the filters the user actually implied: `--hours`, `--app`,
-   `--kind`, `--has-url`, `--has-file`, `--prefer-recent`.
+   `--kind`, `--has-url`, `--has-file-url`, `--prefer-recent`.
 5. If the first pass is weak, empty, or low-confidence, broaden once before
    giving up: widen `--hours`, drop source filters, inspect `alternatives`,
    then switch between `recall`, `search`, `recent`, and `timeline`.
@@ -78,7 +78,7 @@ and derived-cache boundaries.
 
 ## Critical behavior rules
 
-- Before answering from a stale, empty, or ambiguous archive, run `clipmem agents context --format json` and use the health, settings, revision, and stats summary to decide whether to broaden search or diagnose setup.
+- Before answering from a stale, empty, or ambiguous archive, run `clipmem agents context --format json` and use `generated_at`, health, settings, app state, recent activity, revision, stats, privacy, and capability fields to decide whether to broaden search or diagnose setup.
 - Always use `--format json` when you will parse the response. `--format toon`
   is for token-efficient enumeration only. `--format jsonl` is for streaming
   many rows into a pipeline. Never parse `md` or `text`.
@@ -136,11 +136,22 @@ Always pick the narrowest command that answers the question.
    apps when the user explicitly asks to restore defaults.
 9. **`clipmem service providers --format json`** - inspect service provider
    state without starting or stopping capture.
-10. **`clipmem app settings`, `clipmem app launch-at-login`, or `clipmem app update-check`
-   with `--format json`** - inspect or change menu bar app preferences and
-   app-owned state when the user asks about app defaults.
-11. **`clipmem agents context --format json`** - compact health, settings,
-   revision, stats, and capability context before multi-step work.
+10. **`clipmem app settings`, `clipmem app launch-at-login`,
+   `clipmem app update-check run`, or `clipmem app quit` with
+   `--format json`** - inspect or change menu bar app preferences and app-owned
+   state when the user asks about app defaults, update checks, or quitting the
+   app.
+11. **`clipmem agents context --format json`** - compact health, settings, app
+   state, recent activity, revision, stats, privacy, and capability context
+   before multi-step work.
+
+## Primitive command taxonomy
+
+Primitive commands expose one bounded read or mutation that can be composed
+directly. Convenience workflows such as `recall`, `setup`, `purge`, `ocr run`, and
+`storage optimize-images` remain useful, but verify uncertain results with
+`search`, `recent`, `timeline`, or `get`, and preview broad mutations with
+candidate or dry-run commands when available.
 
 The full flag reference, JSON envelope, and kind values live in
 [references/commands.md](references/commands.md),
@@ -152,7 +163,7 @@ The full flag reference, JSON envelope, and kind values live in
 - **Command, SQL, or code snippet** - start with
   `clipmem recall "..." --format json --limit 5`; if punctuation matters,
   follow with `clipmem search "..." --mode literal --format json`.
-- **URL, path, or filename fragment** - add `--has-url` or `--has-file`; scope
+- **URL, path, or filename fragment** - add `--has-url` or `--has-file-url`; scope
   by `--app safari` or another app only if the user implied it.
 - **"Everything I copied today / from Xcode"** - use
   `clipmem timeline --hours 24 --app xcode --format json` (or `--hours 48` for

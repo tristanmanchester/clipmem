@@ -80,8 +80,24 @@ struct DiagnosticsView: View {
                         DiagnosticsActionButton("Copy Skill Install Command", systemImage: "square.and.arrow.down") {
                             appModel.copyAgentSkillInstallCommand()
                         }
-                        Text("Agents should start with context before multi-step recovery, then use JSON commands for retrieval and mutations.")
+                        DiagnosticsActionButton("Copy OpenClaw Doctor Command", systemImage: "stethoscope") {
+                            appModel.copyAgentOpenClawDoctorCommand()
+                        }
+                        DiagnosticsActionButton("Copy Hermes Doctor Command", systemImage: "stethoscope") {
+                            appModel.copyAgentHermesDoctorCommand()
+                        }
+                        DiagnosticsActionButton("Copy Print Skill Command", systemImage: "doc.text.magnifyingglass") {
+                            appModel.copyAgentPrintSkillCommand()
+                        }
+                        DiagnosticsActionButton("Copy Capability Map Command", systemImage: "map") {
+                            appModel.copyAgentCapabilityMapCommand()
+                        }
+                        Text("Agents should start with context before multi-step recovery, use doctor commands when setup looks stale, and compose JSON primitives before broad workflows.")
                             .font(DesignType.bodySecondary)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Example prompts: find the command I copied yesterday; recover the Safari URL I copied; show snapshot 128 with provenance.")
+                            .font(DesignType.rowMeta)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

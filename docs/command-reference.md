@@ -21,23 +21,34 @@ subcommand. For conceptual explanations and usage guidance, see
 | `forget <ID>` | `text` | — | Hard-delete one snapshot and its history |
 | `purge` | `text` | — | Delete old snapshots by age |
 | `storage compact` | `text` | — | Reclaim SQLite and WAL disk space |
+| `storage image-candidates` | `text` | — | List image rows eligible for optimization |
 | `storage optimize-images` | `text` | — | Convert eligible images to lossless WebP; stream progress with `--progress jsonl` |
 | `settings show` | `text` | no | Show capture policy |
 | `settings pause` | `text` | — | Pause or resume capture |
 | `settings api-key-filter` | `text` | — | Enable or disable API key filtering |
 | `settings ocr` | `text` | — | Enable or disable local OCR for new captures |
 | `settings retention` | `text` | — | Set retention duration |
+| `settings reset` | `text` | — | Reset capture policy and ignored apps |
 | `settings ignore` | `text` | no | Manage ignored bundle IDs |
+| `app settings` | `text` | — | Show or mutate menu bar app preferences |
+| `app launch-at-login` | `text` | — | Show or mutate app launch-at-login preference |
+| `app update-check` | `text` | — | Show, run, or clear app update-check state |
+| `app quit` | `text` | — | Request the menu bar app to quit |
 | `ocr status` | `text` | — | Show OCR queue and result counts |
+| `ocr candidates` | `text` | — | List pending OCR candidates |
+| `ocr get` | `text` | — | Inspect one OCR result |
+| `ocr clear` | `text` | — | Clear one OCR result |
 | `ocr run` | `text` | — | Backfill OCR for stored image snapshots |
 | `setup` | — | — | Initialize and start background capture |
 | `service start` | — | — | Start background capture |
 | `service stop` | — | — | Stop background capture |
 | `service status` | `text` | — | Report watcher state and freshness |
+| `service providers` | `text` | — | Inspect provider availability without mutation |
 | `service uninstall` | — | — | Remove managed service definition |
 | `watch` | — | — | Continuous foreground polling |
 | `capture-once` | — | — | Single clipboard capture |
 | `doctor` | `text` | — | SQLite and FTS5 diagnostics |
+| `agents context` | `text` | — | Agent context bundle and capability map |
 | `agents openclaw install-skill` | — | — | Install packaged skill |
 | `agents openclaw uninstall-skill` | — | — | Remove installed skill |
 | `agents openclaw print-skill` | — | — | Print SKILL.md to stdout |
@@ -310,6 +321,23 @@ after, total bytes before and after, reclaimed bytes, estimated
 reclaimable bytes, page count, freelist count, WAL checkpoint fields,
 and whether compaction completed.
 
+### `clipmem storage image-candidates`
+
+List image representation rows eligible for optimization without rewriting
+stored bytes.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--limit` | 1-250 | 25 | Maximum candidate rows to inspect |
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+```bash
+clipmem storage image-candidates
+clipmem storage image-candidates --limit 50 --format json
+```
+
 ### `clipmem storage optimize-images`
 
 Convert eligible stored image representations to lossless WebP. The
@@ -390,6 +418,22 @@ clipmem service status --human
 clipmem service status --json
 ```
 
+### `clipmem service providers`
+
+Inspect background service provider availability and selected provider without
+starting, stopping, or reinstalling capture.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+```bash
+clipmem service providers
+clipmem service providers --format json
+```
+
 ### `clipmem service uninstall`
 
 Remove the managed service definition.
@@ -442,6 +486,44 @@ clipmem ocr status
 clipmem ocr status --human
 clipmem ocr status --format json
 ```
+
+### `clipmem ocr candidates`
+
+List pending OCR hashes and affected snapshot counts without invoking Apple
+Vision.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--limit` | 1-250 | 25 | Maximum candidate hashes |
+| `--snapshot` | integer | — | Restrict candidates to one snapshot ID |
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+```bash
+clipmem ocr candidates --format json
+clipmem ocr candidates --snapshot 42 --limit 10
+```
+
+### `clipmem ocr get <RAW_SHA256>`
+
+Inspect one OCR result by raw representation hash.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+### `clipmem ocr clear <RAW_SHA256>`
+
+Delete one OCR result and rebuild affected OCR cache rows.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
 
 ### `clipmem ocr run`
 
@@ -497,6 +579,16 @@ image bytes or compress images.
 Set retention to a duration (`30d`, `12h`, `15m`) or `forever` to
 disable automatic pruning.
 
+### `clipmem settings reset`
+
+Reset capture policy and ignored apps to defaults.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
 ### `clipmem settings ignore add <BUNDLE_ID>`
 
 Add a bundle ID to the ignore list.
@@ -514,6 +606,67 @@ List ignored bundle IDs.
 | `--format` | `text\|json\|human` | `text` | Output format |
 | `--json` | flag | — | Alias for `--format json` |
 | `--human` | flag | — | Alias for `--format human` |
+
+---
+
+## Menu bar app commands
+
+### `clipmem app settings show`
+
+Show menu bar app preferences such as binary/database overrides, default recent
+hours, default query mode, and hotkey enablement.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+### `clipmem app settings set <KEY> <VALUE>`
+
+Set one app-local preference. Supported keys are
+`binary-path-override`, `database-path-override`, `default-recent-hours`,
+`default-query-mode`, and `hotkey-enabled`.
+
+### `clipmem app settings clear <KEY>`
+
+Clear one app-local preference and return it to the app default.
+
+### `clipmem app launch-at-login show|set|clear`
+
+Inspect or mutate the app-owned launch-at-login preference bridge. The menu bar
+app applies the preference through `SMAppService` when it refreshes.
+
+```bash
+clipmem app launch-at-login show --format json
+clipmem app launch-at-login set on --format json
+clipmem app launch-at-login clear --format json
+```
+
+### `clipmem app update-check show|run|clear`
+
+Inspect cached update-check state, run the GitHub latest stable release lookup,
+or clear cached update-check state.
+
+```bash
+clipmem app update-check show --format json
+clipmem app update-check run --format json
+clipmem app update-check clear --format json
+```
+
+### `clipmem app quit`
+
+Request the menu bar app to quit.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+```bash
+clipmem app quit --format json
+```
 
 ---
 
@@ -539,6 +692,25 @@ A nonzero exit code means required checks failed.
 ---
 
 ## Agent integration
+
+### `clipmem agents context`
+
+Emit the metadata-first agent context bundle: `clipmem_version`, `generated_at`,
+database path, service health, capture policy, archive revision, statistics,
+menu bar app state, recent activity metadata, privacy guidance, and capability
+map. Raw clipboard text and representation bytes are intentionally excluded,
+but operational metadata such as app names, timestamps, counts, paths, and app
+preference state is included.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--format` | `text\|json\|human` | `text` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
+| `--human` | flag | — | Alias for `--format human` |
+
+```bash
+clipmem agents context --format json
+```
 
 ### `clipmem agents openclaw install-skill`
 

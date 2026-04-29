@@ -6,14 +6,14 @@ use crate::db::{RetrievalFilters, RetrievalKind, SearchMode, TimelineSort};
 
 use super::formats::{OutputArgs, ProgressFormat, RecallOutputArgs, StatsOutputArgs, ToggleState};
 use super::help::{
-    APP_AFTER_HELP, APP_SETTINGS_AFTER_HELP, CAPTURE_ONCE_AFTER_HELP, DOCTOR_AFTER_HELP,
-    EXPORT_AFTER_HELP, FORGET_AFTER_HELP, GET_AFTER_HELP, HERMES_DOCTOR_AFTER_HELP,
-    HERMES_INSTALL_AFTER_HELP, HERMES_PRINT_AFTER_HELP, HERMES_UNINSTALL_AFTER_HELP,
-    OCR_AFTER_HELP, OPENCLAW_DOCTOR_AFTER_HELP, OPENCLAW_INSTALL_AFTER_HELP,
-    OPENCLAW_PRINT_AFTER_HELP, OPENCLAW_UNINSTALL_AFTER_HELP, PURGE_AFTER_HELP, RECALL_AFTER_HELP,
-    RECENT_AFTER_HELP, RESTORE_AFTER_HELP, ROOT_AFTER_HELP, SEARCH_AFTER_HELP, SERVICE_AFTER_HELP,
-    SERVICE_STATUS_AFTER_HELP, SETTINGS_AFTER_HELP, SETUP_AFTER_HELP, STATS_AFTER_HELP,
-    STORAGE_AFTER_HELP, TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
+    AGENTS_CONTEXT_AFTER_HELP, APP_AFTER_HELP, APP_SETTINGS_AFTER_HELP, CAPTURE_ONCE_AFTER_HELP,
+    DOCTOR_AFTER_HELP, EXPORT_AFTER_HELP, FORGET_AFTER_HELP, GET_AFTER_HELP,
+    HERMES_DOCTOR_AFTER_HELP, HERMES_INSTALL_AFTER_HELP, HERMES_PRINT_AFTER_HELP,
+    HERMES_UNINSTALL_AFTER_HELP, OCR_AFTER_HELP, OPENCLAW_DOCTOR_AFTER_HELP,
+    OPENCLAW_INSTALL_AFTER_HELP, OPENCLAW_PRINT_AFTER_HELP, OPENCLAW_UNINSTALL_AFTER_HELP,
+    PURGE_AFTER_HELP, RECALL_AFTER_HELP, RECENT_AFTER_HELP, RESTORE_AFTER_HELP, ROOT_AFTER_HELP,
+    SEARCH_AFTER_HELP, SERVICE_AFTER_HELP, SERVICE_STATUS_AFTER_HELP, SETTINGS_AFTER_HELP,
+    SETUP_AFTER_HELP, STATS_AFTER_HELP, STORAGE_AFTER_HELP, TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
 };
 use super::parsing::{
     parse_bounded_limit, parse_duration_value, parse_nonnegative_bytes, parse_normalized_score,
@@ -192,6 +192,8 @@ pub(super) enum AppCommand {
     LaunchAtLogin(AppLaunchAtLoginArgs),
     /// View or clear cached menu bar app update-check state.
     UpdateCheck(AppUpdateCheckArgs),
+    /// Request that the menu bar app quit.
+    Quit(AppQuitArgs),
 }
 
 #[derive(Debug, Args)]
@@ -287,6 +289,8 @@ pub(super) struct AppUpdateCheckArgs {
 pub(super) enum AppUpdateCheckCommand {
     /// Show cached update-check state.
     Show(AppUpdateCheckShowArgs),
+    /// Run a live update check and refresh cached update state.
+    Run(AppUpdateCheckRunArgs),
     /// Clear cached update-check state.
     Clear(AppUpdateCheckClearArgs),
 }
@@ -298,7 +302,19 @@ pub(super) struct AppUpdateCheckShowArgs {
 }
 
 #[derive(Debug, Args)]
+pub(super) struct AppUpdateCheckRunArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
 pub(super) struct AppUpdateCheckClearArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppQuitArgs {
     #[command(flatten)]
     pub(super) output: OutputArgs,
 }
@@ -878,7 +894,8 @@ pub(super) struct AgentsArgs {
 
 #[derive(Debug, Subcommand)]
 pub(super) enum AgentsCommand {
-    /// Print a compact machine-readable context bundle for agents.
+    /// Print a compact context bundle for agents.
+    #[command(after_help = AGENTS_CONTEXT_AFTER_HELP)]
     Context(AgentsContextArgs),
     /// Manage OpenClaw skill integration.
     Openclaw(OpenClawArgs),

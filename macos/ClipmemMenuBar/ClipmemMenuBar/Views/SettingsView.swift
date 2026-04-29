@@ -12,6 +12,7 @@ struct ClipmemSettingsView: View {
     @State private var handledSettingsOpenRequestID = 0
     @State private var newIgnoredBundleID = ""
     @State private var retentionValue = "forever"
+    @FocusState private var retentionFieldFocused: Bool
     @State private var confirmRetention = false
     @State private var confirmCompact = false
     @State private var confirmCompressImages = false
@@ -53,6 +54,10 @@ struct ClipmemSettingsView: View {
         }
         .onChange(of: appModel.pendingSettingsOpenRequest?.id) {
             applyPendingSettingsOpenRequestIfNeeded()
+        }
+        .onChange(of: appModel.settingsReport?.retention) { _, value in
+            guard retentionFieldFocused == false else { return }
+            retentionValue = value ?? "forever"
         }
     }
 
@@ -183,6 +188,7 @@ struct ClipmemSettingsView: View {
                 HStack {
                     TextField("Duration", text: $retentionValue)
                         .textFieldStyle(.roundedBorder)
+                        .focused($retentionFieldFocused)
                     Button("Apply") {
                         confirmRetention = true
                     }

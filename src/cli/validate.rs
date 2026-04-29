@@ -53,10 +53,16 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
                 AppUpdateCheckCommand::Show(args) => {
                     validate_value(args.output.resolved())?;
                 }
+                AppUpdateCheckCommand::Run(args) => {
+                    validate_value(args.output.resolved())?;
+                }
                 AppUpdateCheckCommand::Clear(args) => {
                     validate_value(args.output.resolved())?;
                 }
             },
+            AppCommand::Quit(args) => {
+                validate_value(args.output.resolved())?;
+            }
         },
         Command::Search(args) => {
             validate_value(args.output.resolved())?;

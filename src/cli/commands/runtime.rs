@@ -13,6 +13,7 @@ use crate::db::{CaptureSkipReason, CaptureStoreOutcome, Database};
 use crate::model::ClipboardSnapshot;
 use crate::platform::{capture_snapshot, current_change_count};
 
+use crate::cli::commands::notify::notify_app_refresh;
 use crate::cli::errors::{db_error, platform_error};
 use crate::cli::human::render_capture_once_human;
 use crate::cli::output::{
@@ -106,6 +107,7 @@ where
             mark_change_handled(snapshot.change_count(), state);
             db.apply_retention_policy()
                 .context("apply retention policy failed")?;
+            notify_app_refresh();
             if !args.quiet {
                 println!("{}", format_watch_capture_line(&snapshot, &result));
             }
@@ -140,11 +142,16 @@ pub(in crate::cli) fn start_ocr_worker(db_path: PathBuf) {
         let run = || -> Result<()> {
             let mut worker_db = Database::open_or_init(&db_path)?;
             let engine = crate::ocr::default_engine();
+            let mut processed = 0usize;
             loop {
                 let report = crate::ocr::run_ocr_jobs(&mut worker_db, &engine, 1, None, false)?;
                 if report.processed() == 0 {
                     break;
                 }
+                processed += report.processed();
+            }
+            if processed > 0 {
+                notify_app_refresh();
             }
             Ok(())
         };
@@ -203,6 +210,7 @@ pub(in crate::cli) fn capture_once(db_path: &Path, args: &CaptureOnceArgs) -> Re
         CaptureStoreOutcome::Stored(store) => {
             db.apply_retention_policy()
                 .context("apply retention policy failed")?;
+            notify_app_refresh();
             CaptureOnceOutput::Stored(CaptureOnceStoredOutput { store, snapshot })
         }
         CaptureStoreOutcome::Skipped(reason) => {
