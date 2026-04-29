@@ -95,6 +95,39 @@ fn setup_and_service_help_include_examples() {
     }
 }
 
+#[test]
+fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
+    let path = temp_db_path("agents-context");
+    seed_database(&path, &[text_snapshot(1, "agent context fixture")])?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "agents",
+        "context",
+        "--format",
+        "json",
+    ]);
+    let payload: Value =
+        serde_json::from_slice(&output.stdout).expect("agents context JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert_eq!(payload["schema_version"].as_u64(), Some(1));
+    assert_eq!(payload["db_exists"].as_bool(), Some(true));
+    assert_eq!(
+        payload["revision"]["archive_content_revision"].as_u64(),
+        Some(1)
+    );
+    assert_eq!(payload["stats"]["snapshot_count"].as_u64(), Some(1));
+    assert_eq!(
+        payload["capabilities"]["action_parity_doc"].as_str(),
+        Some("docs/action-parity.md")
+    );
+
+    cleanup_db(&path);
+    Ok(())
+}
+
 #[cfg(target_os = "macos")]
 #[test]
 fn setup_reenables_disabled_direct_launchagent_before_bootstrap() -> Result<()> {

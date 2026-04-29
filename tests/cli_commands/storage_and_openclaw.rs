@@ -93,6 +93,39 @@ fn settings_commands_persist_policy_and_support_json_views() -> Result<()> {
         Some("com.apple.terminal")
     );
 
+    let reset_output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "settings",
+        "reset",
+        "--format",
+        "json",
+    ]);
+    let reset_payload: Value =
+        serde_json::from_slice(&reset_output.stdout).expect("settings reset JSON should parse");
+
+    assert!(reset_output.status.success());
+    assert_eq!(reset_payload["paused"].as_bool(), Some(false));
+    assert_eq!(
+        reset_payload["api_key_filter_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(reset_payload["ocr_enabled"].as_bool(), Some(false));
+    assert!(reset_payload["retention_seconds"].is_null());
+    assert_eq!(reset_payload["retention"].as_str(), Some("forever"));
+    assert_eq!(
+        reset_payload["ignored_bundle_ids"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    let db = Database::open_existing(&path)?;
+    let revision = db.archive_revision()?;
+    assert_eq!(revision.settings_revision(), 6);
+    assert_eq!(revision.last_change_kind(), "settings");
+
     cleanup_db(&path);
     Ok(())
 }
@@ -119,6 +152,7 @@ fn forget_command_hard_deletes_snapshot() -> Result<()> {
         .search_auto("temporary clipboard", 10, &Default::default())?
         .hits()
         .is_empty());
+    assert_eq!(db.archive_revision()?.archive_content_revision(), 2);
 
     cleanup_db(&path);
     Ok(())
@@ -194,6 +228,7 @@ fn purge_command_reports_dry_run_then_deletes_old_snapshots() -> Result<()> {
     let db = Database::open_existing(&path)?;
     assert!(db.find_snapshot(events[0].0, 10)?.is_none());
     assert!(db.find_snapshot(events[1].0, 10)?.is_some());
+    assert_eq!(db.archive_revision()?.archive_content_revision(), 3);
 
     cleanup_db(&path);
     Ok(())
@@ -262,6 +297,32 @@ fn storage_compact_json_reports_file_sizes() -> Result<()> {
     assert!(payload["after"]["db"].as_u64().unwrap_or_default() >= before);
     assert!(payload["page_count"].as_u64().unwrap_or_default() > 0);
     assert!(payload["estimated_reclaimable_bytes"].as_u64().is_some());
+    assert_eq!(
+        Database::open_existing(&path)?
+            .archive_revision()?
+            .storage_revision(),
+        0
+    );
+
+    let compact = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "storage",
+        "compact",
+        "--format",
+        "json",
+    ]);
+    let compact_payload: Value =
+        serde_json::from_slice(&compact.stdout).expect("storage compact JSON should parse");
+
+    assert!(compact.status.success(), "{}", stderr_text(&compact));
+    assert_eq!(compact_payload["completed"].as_bool(), Some(true));
+    assert_eq!(
+        Database::open_existing(&path)?
+            .archive_revision()?
+            .storage_revision(),
+        1
+    );
 
     cleanup_db(&path);
     Ok(())
@@ -294,6 +355,41 @@ fn storage_optimize_images_json_reports_dry_run_without_marking_rows() -> Result
 
     let conn = Connection::open(&path)?;
     let status: String = conn.query_row(
+        "SELECT image_compression_status FROM item_representations",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(status, "uncompressed");
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
+fn storage_image_candidates_lists_eligible_rows_without_mutation() -> Result<()> {
+    let path = temp_db_path("storage-image-candidates");
+    seed_database(&path, &[image_snapshot(1, b"not actually a png")])?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "storage",
+        "image-candidates",
+        "--limit",
+        "1",
+        "--format",
+        "json",
+    ]);
+    let payload: Value =
+        serde_json::from_slice(&output.stdout).expect("image candidates JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert_eq!(payload.as_array().expect("array").len(), 1);
+    assert_eq!(payload[0]["snapshot_id"].as_u64(), Some(1));
+    assert_eq!(payload[0]["item_index"].as_u64(), Some(0));
+    assert_eq!(payload[0]["uti"].as_str(), Some("public.png"));
+
+    let status: String = Connection::open(&path)?.query_row(
         "SELECT image_compression_status FROM item_representations",
         [],
         |row| row.get(0),

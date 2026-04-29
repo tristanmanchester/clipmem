@@ -44,7 +44,8 @@ The app uses explicit SwiftUI scenes:
 - **Settings** — service controls, binary path override, database path,
   defaults, hotkey, ignored bundle IDs, retention, pause, API-key
   filtering, privacy controls, storage maintenance (compress images,
-  compact database, purge old history), and diagnostics.
+  compact database, purge old history), diagnostics, and agent
+  integration command discovery.
 
 Text snippets that use basic Markdown render bold, italics, headings, and
 styled links in recent rows and History detail. Command-click a rendered link
@@ -75,6 +76,11 @@ Ignore-list, pause, API-key filtering, and retention are the existing
 SQLite-backed `clipmem settings` policy. Changes made in the app's
 **Settings** window apply to the same database that the CLI and agents
 use.
+
+The Diagnostics tab includes agent integration actions for copying the
+context preflight command and packaged skill install command. These are
+copy-only helpers; the CLI remains the source of truth for actual agent
+integration state.
 
 ## Build from source
 

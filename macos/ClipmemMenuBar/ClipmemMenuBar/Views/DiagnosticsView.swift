@@ -72,6 +72,21 @@ struct DiagnosticsView: View {
                     .padding(.top, Spacing.sm)
                 }
 
+                GroupBox("Agent Integration") {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        DiagnosticsActionButton("Copy Context Command", systemImage: "doc.on.doc") {
+                            appModel.copyAgentContextCommand()
+                        }
+                        DiagnosticsActionButton("Copy Skill Install Command", systemImage: "square.and.arrow.down") {
+                            appModel.copyAgentSkillInstallCommand()
+                        }
+                        Text("Agents should start with context before multi-step recovery, then use JSON commands for retrieval and mutations.")
+                            .font(DesignType.bodySecondary)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
                 if let notes = appModel.serviceStatus?.notes, notes.isEmpty == false {
                     GroupBox("Notes") {
                         VStack(alignment: .leading, spacing: Spacing.sm) {

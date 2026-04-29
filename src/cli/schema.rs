@@ -6,13 +6,14 @@ use crate::db::{RetrievalFilters, RetrievalKind, SearchMode, TimelineSort};
 
 use super::formats::{OutputArgs, ProgressFormat, RecallOutputArgs, StatsOutputArgs, ToggleState};
 use super::help::{
-    CAPTURE_ONCE_AFTER_HELP, DOCTOR_AFTER_HELP, EXPORT_AFTER_HELP, FORGET_AFTER_HELP,
-    GET_AFTER_HELP, HERMES_DOCTOR_AFTER_HELP, HERMES_INSTALL_AFTER_HELP, HERMES_PRINT_AFTER_HELP,
-    HERMES_UNINSTALL_AFTER_HELP, OCR_AFTER_HELP, OPENCLAW_DOCTOR_AFTER_HELP,
-    OPENCLAW_INSTALL_AFTER_HELP, OPENCLAW_PRINT_AFTER_HELP, OPENCLAW_UNINSTALL_AFTER_HELP,
-    PURGE_AFTER_HELP, RECALL_AFTER_HELP, RECENT_AFTER_HELP, RESTORE_AFTER_HELP, ROOT_AFTER_HELP,
-    SEARCH_AFTER_HELP, SERVICE_AFTER_HELP, SERVICE_STATUS_AFTER_HELP, SETTINGS_AFTER_HELP,
-    SETUP_AFTER_HELP, STATS_AFTER_HELP, STORAGE_AFTER_HELP, TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
+    APP_AFTER_HELP, APP_SETTINGS_AFTER_HELP, CAPTURE_ONCE_AFTER_HELP, DOCTOR_AFTER_HELP,
+    EXPORT_AFTER_HELP, FORGET_AFTER_HELP, GET_AFTER_HELP, HERMES_DOCTOR_AFTER_HELP,
+    HERMES_INSTALL_AFTER_HELP, HERMES_PRINT_AFTER_HELP, HERMES_UNINSTALL_AFTER_HELP,
+    OCR_AFTER_HELP, OPENCLAW_DOCTOR_AFTER_HELP, OPENCLAW_INSTALL_AFTER_HELP,
+    OPENCLAW_PRINT_AFTER_HELP, OPENCLAW_UNINSTALL_AFTER_HELP, PURGE_AFTER_HELP, RECALL_AFTER_HELP,
+    RECENT_AFTER_HELP, RESTORE_AFTER_HELP, ROOT_AFTER_HELP, SEARCH_AFTER_HELP, SERVICE_AFTER_HELP,
+    SERVICE_STATUS_AFTER_HELP, SETTINGS_AFTER_HELP, SETUP_AFTER_HELP, STATS_AFTER_HELP,
+    STORAGE_AFTER_HELP, TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
 };
 use super::parsing::{
     parse_bounded_limit, parse_duration_value, parse_nonnegative_bytes, parse_normalized_score,
@@ -23,6 +24,40 @@ use super::value_validation::{
     normalize_nonempty_filter_value, validate_byte_window, validate_positive_hours,
     validate_time_window,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AppPreferenceKey {
+    BinaryPathOverride,
+    DatabasePathOverride,
+    DefaultRecentHours,
+    DefaultQueryMode,
+    HotkeyEnabled,
+}
+
+impl AppPreferenceKey {
+    pub(super) const fn as_str(self) -> &'static str {
+        match self {
+            Self::BinaryPathOverride => "binary-path-override",
+            Self::DatabasePathOverride => "database-path-override",
+            Self::DefaultRecentHours => "default-recent-hours",
+            Self::DefaultQueryMode => "default-query-mode",
+            Self::HotkeyEnabled => "hotkey-enabled",
+        }
+    }
+}
+
+fn parse_app_preference_key(value: &str) -> Result<AppPreferenceKey, String> {
+    match value {
+        "binary-path-override" => Ok(AppPreferenceKey::BinaryPathOverride),
+        "database-path-override" => Ok(AppPreferenceKey::DatabasePathOverride),
+        "default-recent-hours" => Ok(AppPreferenceKey::DefaultRecentHours),
+        "default-query-mode" => Ok(AppPreferenceKey::DefaultQueryMode),
+        "hotkey-enabled" => Ok(AppPreferenceKey::HotkeyEnabled),
+        _ => Err(format!(
+            "unsupported app preference key `{value}`; expected binary-path-override, database-path-override, default-recent-hours, default-query-mode, or hotkey-enabled"
+        )),
+    }
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "clipmem")]
@@ -47,6 +82,8 @@ pub(super) enum Command {
     Setup(SetupArgs),
     /// Manage the background clipmem watcher service.
     Service(ServiceArgs),
+    /// View and update menu bar app preferences.
+    App(AppArgs),
     /// Continuously poll the clipboard and archive observed changes.
     Watch(WatchArgs),
     /// Capture the current clipboard state once.
@@ -110,6 +147,8 @@ pub(super) struct ServiceArgs {
 
 #[derive(Debug, Subcommand)]
 pub(super) enum ServiceCommand {
+    /// List service providers and their current state without changing them.
+    Providers(ServiceProvidersArgs),
     /// Start background capture using the preferred service provider.
     Start,
     /// Stop background capture without uninstalling the service definition when possible.
@@ -118,6 +157,12 @@ pub(super) enum ServiceCommand {
     Status(ServiceStatusArgs),
     /// Remove the managed service definition.
     Uninstall,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct ServiceProvidersArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
 }
 
 #[derive(Debug, Args)]
@@ -130,6 +175,132 @@ pub(super) struct ServiceStatusArgs {
     /// Emit service status as polished terminal output.
     #[arg(long, default_value_t = false)]
     pub(super) human: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(after_help = APP_AFTER_HELP)]
+pub(super) struct AppArgs {
+    #[command(subcommand)]
+    pub(super) command: AppCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub(super) enum AppCommand {
+    /// View and update menu bar app preferences.
+    Settings(AppSettingsArgs),
+    /// View and update the app-owned launch-at-login preference bridge.
+    LaunchAtLogin(AppLaunchAtLoginArgs),
+    /// View or clear cached menu bar app update-check state.
+    UpdateCheck(AppUpdateCheckArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(after_help = APP_SETTINGS_AFTER_HELP)]
+pub(super) struct AppSettingsArgs {
+    #[command(subcommand)]
+    pub(super) command: AppSettingsCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub(super) enum AppSettingsCommand {
+    /// Show menu bar app preferences.
+    Show(AppSettingsShowArgs),
+    /// Set one menu bar app preference.
+    Set(AppSettingsSetArgs),
+    /// Clear one menu bar app preference.
+    Clear(AppSettingsClearArgs),
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppSettingsShowArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppSettingsSetArgs {
+    /// Preference key to set.
+    #[arg(value_parser = parse_app_preference_key)]
+    pub(super) key: AppPreferenceKey,
+
+    /// Preference value.
+    pub(super) value: String,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppSettingsClearArgs {
+    /// Preference key to clear.
+    #[arg(value_parser = parse_app_preference_key)]
+    pub(super) key: AppPreferenceKey,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppLaunchAtLoginArgs {
+    #[command(subcommand)]
+    pub(super) command: AppLaunchAtLoginCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub(super) enum AppLaunchAtLoginCommand {
+    /// Show requested launch-at-login state.
+    Show(AppLaunchAtLoginShowArgs),
+    /// Set requested launch-at-login state.
+    Set(AppLaunchAtLoginSetArgs),
+    /// Clear requested launch-at-login state.
+    Clear(AppLaunchAtLoginClearArgs),
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppLaunchAtLoginShowArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppLaunchAtLoginSetArgs {
+    /// Requested launch-at-login state.
+    pub(super) state: ToggleState,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppLaunchAtLoginClearArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppUpdateCheckArgs {
+    #[command(subcommand)]
+    pub(super) command: AppUpdateCheckCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub(super) enum AppUpdateCheckCommand {
+    /// Show cached update-check state.
+    Show(AppUpdateCheckShowArgs),
+    /// Clear cached update-check state.
+    Clear(AppUpdateCheckClearArgs),
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppUpdateCheckShowArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AppUpdateCheckClearArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
 }
 
 #[derive(Debug, Args)]
@@ -472,6 +643,8 @@ pub(super) struct StorageArgs {
 pub(super) enum StorageCommand {
     /// Reclaim SQLite database and WAL disk space.
     Compact(StorageCompactArgs),
+    /// List image rows eligible for optimization without rewriting bytes.
+    ImageCandidates(StorageImageCandidatesArgs),
     /// Convert eligible archived images to lossless WebP.
     OptimizeImages(StorageOptimizeImagesArgs),
 }
@@ -481,6 +654,16 @@ pub(super) struct StorageCompactArgs {
     /// Report database size and freelist state without running VACUUM.
     #[arg(long, default_value_t = false)]
     pub(super) dry_run: bool,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct StorageImageCandidatesArgs {
+    /// Maximum number of eligible image rows to list.
+    #[arg(long, default_value_t = 25, value_parser = parse_bounded_limit)]
+    pub(super) limit: usize,
 
     #[command(flatten)]
     pub(super) output: OutputArgs,
@@ -519,12 +702,50 @@ pub(super) struct OcrArgs {
 pub(super) enum OcrCommand {
     /// Report OCR queue and result counts.
     Status(OcrStatusArgs),
+    /// List pending OCR candidates without running OCR.
+    Candidates(OcrCandidatesArgs),
+    /// Show one OCR result by raw SHA-256 hash.
+    Get(OcrGetArgs),
+    /// Clear one OCR result by raw SHA-256 hash.
+    Clear(OcrClearArgs),
     /// Process pending OCR candidates.
     Run(OcrRunArgs),
 }
 
 #[derive(Debug, Args)]
 pub(super) struct OcrStatusArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct OcrCandidatesArgs {
+    /// Maximum number of pending OCR hashes to list.
+    #[arg(long, default_value_t = 25, value_parser = parse_bounded_limit)]
+    pub(super) limit: usize,
+
+    /// Restrict candidates to one snapshot id.
+    #[arg(long)]
+    pub(super) snapshot: Option<i64>,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct OcrGetArgs {
+    /// Raw representation SHA-256 hash.
+    pub(super) raw_sha256: String,
+
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct OcrClearArgs {
+    /// Raw representation SHA-256 hash.
+    pub(super) raw_sha256: String,
+
     #[command(flatten)]
     pub(super) output: OutputArgs,
 }
@@ -566,6 +787,8 @@ pub(super) enum SettingsCommand {
     Ocr(SettingsOcrArgs),
     /// Set retention to a duration or `forever`.
     Retention(SettingsRetentionArgs),
+    /// Reset capture policy and ignored apps to defaults.
+    Reset(SettingsResetArgs),
     /// Manage ignored bundle identifiers.
     Ignore(SettingsIgnoreArgs),
 }
@@ -599,6 +822,12 @@ pub(super) struct SettingsRetentionArgs {
     /// Retain snapshots for this duration, or `forever` to disable automatic pruning.
     #[arg(value_parser = parse_retention_value)]
     pub(super) value: RetentionValue,
+}
+
+#[derive(Debug, Args)]
+pub(super) struct SettingsResetArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
 }
 
 #[derive(Debug, Args)]
@@ -649,10 +878,18 @@ pub(super) struct AgentsArgs {
 
 #[derive(Debug, Subcommand)]
 pub(super) enum AgentsCommand {
+    /// Print a compact machine-readable context bundle for agents.
+    Context(AgentsContextArgs),
     /// Manage OpenClaw skill integration.
     Openclaw(OpenClawArgs),
     /// Manage Hermes Agent skill integration.
     Hermes(HermesArgs),
+}
+
+#[derive(Debug, Args)]
+pub(super) struct AgentsContextArgs {
+    #[command(flatten)]
+    pub(super) output: OutputArgs,
 }
 
 #[derive(Debug, Args)]

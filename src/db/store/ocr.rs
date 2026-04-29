@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
-use rusqlite::{params, TransactionBehavior};
+use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
 use crate::db::core::clamp_result_limit;
 use crate::db::sqlite_helpers::{collect_rows, row_usize, usize_to_i64};
-use crate::db::types::{Database, OcrCandidate, OcrStatusReport};
+use crate::db::types::{
+    ArchiveChangeKind, Database, OcrCandidate, OcrCandidateSummary, OcrResultRecord,
+    OcrStatusReport,
+};
+
+use super::revision::bump_revision_tx;
 
 impl Database {
     pub(crate) fn enqueue_ocr_for_snapshot(&mut self, snapshot_id: i64) -> Result<usize> {
@@ -13,6 +18,9 @@ impl Database {
             .context("begin ocr enqueue transaction")?;
         let inserted = enqueue_ocr_for_snapshot_tx(&tx, snapshot_id)?;
         rebuild_snapshot_ocr_cache(&tx, snapshot_id)?;
+        if inserted != 0 {
+            bump_revision_tx(&tx, &[ArchiveChangeKind::Ocr])?;
+        }
         tx.commit().context("commit ocr enqueue transaction")?;
         Ok(inserted)
     }
@@ -28,8 +36,8 @@ impl Database {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .context("begin ocr candidate transaction")?;
 
-        enqueue_ocr_candidates_tx(&tx, snapshot_id)?;
-        if retry_failed {
+        let enqueued = enqueue_ocr_candidates_tx(&tx, snapshot_id)?;
+        let requeued = if retry_failed {
             tx.execute(
                 r"
                     UPDATE ocr_results
@@ -49,8 +57,10 @@ impl Database {
                 ",
                 [snapshot_id],
             )
-            .context("requeue failed ocr results")?;
-        }
+            .context("requeue failed ocr results")?
+        } else {
+            0
+        };
 
         let limit = usize_to_i64(clamp_result_limit(limit))?;
         let mut stmt = tx
@@ -103,6 +113,9 @@ impl Database {
             .context("execute ocr candidate query")?;
         let candidates = collect_rows(rows).context("collect ocr candidates")?;
         drop(stmt);
+        if enqueued != 0 || requeued != 0 {
+            bump_revision_tx(&tx, &[ArchiveChangeKind::Ocr])?;
+        }
         tx.commit().context("commit ocr candidate transaction")?;
         Ok(candidates)
     }
@@ -123,8 +136,9 @@ impl Database {
         } else {
             "ready"
         };
-        tx.execute(
-            r"
+        let changed = tx
+            .execute(
+                r"
                 UPDATE ocr_results
                 SET status = ?2,
                     engine = ?3,
@@ -135,10 +149,13 @@ impl Database {
                     updated_at = CURRENT_TIMESTAMP
                 WHERE raw_sha256 = ?1
             ",
-            params![raw_sha256, status, engine, recognition_level, text.trim()],
-        )
-        .context("store ocr text result")?;
+                params![raw_sha256, status, engine, recognition_level, text.trim()],
+            )
+            .context("store ocr text result")?;
         rebuild_snapshot_ocr_cache_for_hash(&tx, raw_sha256)?;
+        if changed != 0 {
+            bump_revision_tx(&tx, &[ArchiveChangeKind::Ocr])?;
+        }
         tx.commit().context("commit ocr result transaction")?;
         Ok(())
     }
@@ -154,8 +171,9 @@ impl Database {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .context("begin ocr failure transaction")?;
-        tx.execute(
-            r"
+        let changed = tx
+            .execute(
+                r"
                 UPDATE ocr_results
                 SET status = 'failed',
                     engine = ?2,
@@ -166,10 +184,13 @@ impl Database {
                     updated_at = CURRENT_TIMESTAMP
                 WHERE raw_sha256 = ?1
             ",
-            params![raw_sha256, engine, recognition_level, error],
-        )
-        .context("store ocr failure result")?;
+                params![raw_sha256, engine, recognition_level, error],
+            )
+            .context("store ocr failure result")?;
         rebuild_snapshot_ocr_cache_for_hash(&tx, raw_sha256)?;
+        if changed != 0 {
+            bump_revision_tx(&tx, &[ArchiveChangeKind::Ocr])?;
+        }
         tx.commit().context("commit ocr failure transaction")?;
         Ok(())
     }
@@ -201,6 +222,103 @@ impl Database {
                 },
             )
             .context("load ocr status report")
+    }
+
+    pub(crate) fn ocr_candidate_summaries(
+        &self,
+        limit: usize,
+        snapshot_id: Option<i64>,
+    ) -> Result<Vec<OcrCandidateSummary>> {
+        let limit = usize_to_i64(clamp_result_limit(limit))?;
+        let mut stmt = self
+            .conn
+            .prepare(
+                r"
+                    SELECT
+                        o.raw_sha256,
+                        COALESCE(MAX(ir.byte_len), 0) AS byte_len,
+                        COUNT(DISTINCT ir.snapshot_id) AS snapshot_count,
+                        o.updated_at
+                    FROM ocr_results o
+                    JOIN item_representations ir ON ir.raw_sha256 = o.raw_sha256
+                    WHERE o.status = 'pending'
+                      AND (?1 IS NULL OR ir.snapshot_id = ?1)
+                    GROUP BY o.raw_sha256, o.updated_at
+                    ORDER BY o.updated_at ASC, o.raw_sha256 ASC
+                    LIMIT ?2
+                ",
+            )
+            .context("prepare ocr candidate summary query")?;
+        let rows = stmt
+            .query_map(params![snapshot_id, limit], |row| {
+                Ok(OcrCandidateSummary::new(
+                    row.get(0)?,
+                    row_usize(row, 1)?,
+                    row_usize(row, 2)?,
+                    row.get(3)?,
+                ))
+            })
+            .context("execute ocr candidate summary query")?;
+        collect_rows(rows).context("collect ocr candidate summaries")
+    }
+
+    pub(crate) fn ocr_result(&self, raw_sha256: &str) -> Result<Option<OcrResultRecord>> {
+        self.conn
+            .query_row(
+                r"
+                    SELECT
+                        o.raw_sha256,
+                        o.status,
+                        o.engine,
+                        o.recognition_level,
+                        o.text_value,
+                        o.error,
+                        o.attempt_count,
+                        o.updated_at,
+                        (
+                            SELECT COUNT(DISTINCT ir.snapshot_id)
+                            FROM item_representations ir
+                            WHERE ir.raw_sha256 = o.raw_sha256
+                        ) AS snapshot_count
+                    FROM ocr_results o
+                    WHERE o.raw_sha256 = ?1
+                ",
+                [raw_sha256],
+                |row| {
+                    Ok(OcrResultRecord::new(
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row_usize(row, 6)?,
+                        row.get(7)?,
+                        row_usize(row, 8)?,
+                    ))
+                },
+            )
+            .optional()
+            .context("load ocr result")
+    }
+
+    pub(crate) fn clear_ocr_result(&mut self, raw_sha256: &str) -> Result<bool> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .context("begin ocr clear transaction")?;
+        let changed = tx
+            .execute(
+                "DELETE FROM ocr_results WHERE raw_sha256 = ?1",
+                [raw_sha256],
+            )
+            .context("delete ocr result")?;
+        rebuild_snapshot_ocr_cache_for_hash(&tx, raw_sha256)?;
+        if changed != 0 {
+            bump_revision_tx(&tx, &[ArchiveChangeKind::Ocr])?;
+        }
+        tx.commit().context("commit ocr clear transaction")?;
+        Ok(changed != 0)
     }
 }
 

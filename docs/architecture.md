@@ -75,6 +75,12 @@ Supporting tables:
   `raw_sha256`
 - `snapshot_ocr_cache` — aggregated ready OCR text per snapshot
 
+The agent-facing entity and CRUD contract is documented in
+[action parity](action-parity.md). In that contract, derived tables
+such as `snapshot_stats`, projection caches, OCR caches, and FTS
+virtual tables are not independent user entities; they are maintained
+from source archive rows and verified through source-entity behavior.
+
 Cache maintenance is intentionally hybrid. Triggers maintain the
 steady-state derived tables: snapshot stats, event-filter cache,
 literal and FTS search indexes, OCR cache rows, and representation
@@ -166,5 +172,7 @@ omits heavyweight fields instead of embedding them as JSON blobs.
   fields, and TOON skim output
 - [Command reference](command-reference.md) — exhaustive flag-level
   reference
+- [Action parity](action-parity.md) — agent-native capability and CRUD
+  contract
 - [Contributing](contributing.md) — project layout and development
   workflow

@@ -2,8 +2,9 @@ use clap::error::ErrorKind;
 
 use super::errors::{clap_error, clap_error_from_value, CliValueError};
 use super::schema::{
-    Cli, Command, OcrCommand, ServiceCommand, SettingsCommand, SettingsIgnoreCommand,
-    StorageCommand, StorageOptimizeImagesArgs,
+    AppCommand, AppLaunchAtLoginCommand, AppSettingsCommand, AppUpdateCheckCommand, Cli, Command,
+    OcrCommand, ServiceCommand, SettingsCommand, SettingsIgnoreCommand, StorageCommand,
+    StorageOptimizeImagesArgs,
 };
 
 fn validate_value<T>(
@@ -16,11 +17,47 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
     match &cli.command {
         Command::Agents(_args) => {}
         Command::Setup(_) => {}
-        Command::Service(args) => {
-            if let ServiceCommand::Status(args) = &args.command {
+        Command::Service(args) => match &args.command {
+            ServiceCommand::Providers(args) => {
+                validate_value(args.output.resolved())?;
+            }
+            ServiceCommand::Status(args) => {
                 validate_json_human_flags(args.json, args.human)?;
             }
-        }
+            ServiceCommand::Start | ServiceCommand::Stop | ServiceCommand::Uninstall => {}
+        },
+        Command::App(args) => match &args.command {
+            AppCommand::Settings(args) => match &args.command {
+                AppSettingsCommand::Show(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+                AppSettingsCommand::Set(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+                AppSettingsCommand::Clear(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+            },
+            AppCommand::LaunchAtLogin(args) => match &args.command {
+                AppLaunchAtLoginCommand::Show(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+                AppLaunchAtLoginCommand::Set(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+                AppLaunchAtLoginCommand::Clear(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+            },
+            AppCommand::UpdateCheck(args) => match &args.command {
+                AppUpdateCheckCommand::Show(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+                AppUpdateCheckCommand::Clear(args) => {
+                    validate_value(args.output.resolved())?;
+                }
+            },
+        },
         Command::Search(args) => {
             validate_value(args.output.resolved())?;
             validate_value(args.filters.normalized())?;
@@ -39,6 +76,15 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
         }
         Command::Ocr(args) => match &args.command {
             OcrCommand::Status(args) => {
+                validate_value(args.output.resolved())?;
+            }
+            OcrCommand::Candidates(args) => {
+                validate_value(args.output.resolved())?;
+            }
+            OcrCommand::Get(args) => {
+                validate_value(args.output.resolved())?;
+            }
+            OcrCommand::Clear(args) => {
                 validate_value(args.output.resolved())?;
             }
             OcrCommand::Run(args) => {
@@ -70,6 +116,9 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
             StorageCommand::Compact(args) => {
                 validate_value(args.output.resolved())?;
             }
+            StorageCommand::ImageCandidates(args) => {
+                validate_value(args.output.resolved())?;
+            }
             StorageCommand::OptimizeImages(args) => {
                 validate_optimize_images_progress(args)?;
                 validate_value(args.output.resolved())?;
@@ -82,6 +131,9 @@ pub(super) fn validate_cli(cli: &Cli) -> std::result::Result<(), clap::Error> {
             SettingsCommand::Pause(_) | SettingsCommand::ApiKeyFilter(_) => {}
             SettingsCommand::Ocr(_) => {}
             SettingsCommand::Retention(_) => {}
+            SettingsCommand::Reset(args) => {
+                validate_value(args.output.resolved())?;
+            }
             SettingsCommand::Ignore(args) => match &args.command {
                 SettingsIgnoreCommand::Add(_) | SettingsIgnoreCommand::Remove(_) => {}
                 SettingsIgnoreCommand::List(args) => {

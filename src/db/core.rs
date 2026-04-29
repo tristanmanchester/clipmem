@@ -6,7 +6,10 @@ use rusqlite::{Connection, OpenFlags};
 
 use super::schema::{legacy_prerelease_schema_detected, prepare_schema};
 use super::sqlite_helpers::row_usize;
-use super::types::{Database, StorageCheckpointReport, StorageCompactReport, StorageFileSizes};
+use super::store::revision::bump_revision;
+use super::types::{
+    ArchiveChangeKind, Database, StorageCheckpointReport, StorageCompactReport, StorageFileSizes,
+};
 
 impl Database {
     /// Open the archive database at `path`, creating parent directories and schema state as needed.
@@ -107,6 +110,10 @@ impl Database {
                 .context("optimize database")?;
             run_wal_checkpoint(&self.conn, "TRUNCATE")?
         };
+
+        if !dry_run {
+            bump_revision(&self.conn, &[ArchiveChangeKind::Storage])?;
+        }
 
         let page_count = pragma_usize(&self.conn, "page_count")?;
         let freelist_count = pragma_usize(&self.conn, "freelist_count")?;

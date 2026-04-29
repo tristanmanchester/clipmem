@@ -58,6 +58,38 @@ struct ClipmemCommand: Equatable, Sendable {
         ClipmemCommand(arguments: ["settings", "retention", value])
     }
 
+    static func appSettingsShow() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "settings", "show", "--format", "json"])
+    }
+
+    static func appSettingsSet(_ key: String, value: String) -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "settings", "set", key, value, "--format", "json"])
+    }
+
+    static func appSettingsClear(_ key: String) -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "settings", "clear", key, "--format", "json"])
+    }
+
+    static func appLaunchAtLoginShow() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "launch-at-login", "show", "--format", "json"])
+    }
+
+    static func appLaunchAtLoginSet(_ enabled: Bool) -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "launch-at-login", "set", enabled ? "on" : "off", "--format", "json"])
+    }
+
+    static func appLaunchAtLoginClear() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "launch-at-login", "clear", "--format", "json"])
+    }
+
+    static func appUpdateCheckShow() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "update-check", "show", "--format", "json"])
+    }
+
+    static func appUpdateCheckClear() -> ClipmemCommand {
+        ClipmemCommand(arguments: ["app", "update-check", "clear", "--format", "json"])
+    }
+
     static func recent(limit: Int, cursor: String?, filters: RetrievalFilterState) -> ClipmemCommand {
         listCommand(["recent"], limit: limit, cursor: cursor, filters: filters)
     }

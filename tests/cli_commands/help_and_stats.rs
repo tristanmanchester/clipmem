@@ -10,6 +10,7 @@ fn root_help_prints_to_stdout_only_and_exits_successfully() {
     assert!(stdout.contains("Usage: clipmem"));
     assert!(stdout.contains("Examples:"));
     assert!(stdout.contains("Agent-first flow:"));
+    assert!(stdout.contains("docs/action-parity.md"));
     assert!(stderr.is_empty());
 }
 

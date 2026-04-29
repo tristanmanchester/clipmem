@@ -42,6 +42,9 @@ final class AppModel {
     @ObservationIgnored private var historyOpenRequestID = 0
     @ObservationIgnored private var settingsOpenRequestID = 0
     @ObservationIgnored private var pasteboardMonitor: PasteboardChangeMonitor?
+    @ObservationIgnored private var revisionMonitorTask: Task<Void, Never>?
+    @ObservationIgnored private var observedRevision: ArchiveRevision?
+    @ObservationIgnored private var revisionRefreshInFlight = false
     @ObservationIgnored private var recentRefreshCoordinator: RecentPreviewRefreshCoordinator?
     @ObservationIgnored private var recentPreviewRefreshedAt: Date?
 
@@ -68,7 +71,12 @@ final class AppModel {
         await installSelfIgnoreIfNeeded()
         await refreshAll()
         startPasteboardMonitorIfNeeded()
+        startRevisionMonitorIfNeeded()
         await checkForUpdatesIfNeeded()
+    }
+
+    deinit {
+        revisionMonitorTask?.cancel()
     }
 
     func refreshAll() async {
@@ -83,7 +91,9 @@ final class AppModel {
 
     func refreshStatus() async {
         do {
-            serviceStatus = try await client.serviceStatus()
+            let status = try await client.serviceStatus()
+            serviceStatus = status
+            observedRevision = status.revision ?? observedRevision
         } catch {
             serviceStatus = nil
             lastError = UserError(error)
@@ -370,6 +380,16 @@ final class AppModel {
         showActionMessage("Upgrade command copied")
     }
 
+    func copyAgentContextCommand() {
+        PasteboardActions.copyPlainText("clipmem agents context --format json")
+        showActionMessage("Agent context command copied")
+    }
+
+    func copyAgentSkillInstallCommand() {
+        PasteboardActions.copyPlainText("clipmem agents openclaw install-skill")
+        showActionMessage("Agent skill install command copied")
+    }
+
     func openUpdateRelease() {
         guard let releaseURL = updateStatus.releaseURL else { return }
         NSWorkspace.shared.open(releaseURL)
@@ -490,6 +510,65 @@ final class AppModel {
         monitor.start()
     }
 
+    private func startRevisionMonitorIfNeeded() {
+        guard revisionMonitorTask == nil else { return }
+        revisionMonitorTask = Task { [weak self] in
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: .seconds(2))
+                guard Task.isCancelled == false else { return }
+                await self?.pollArchiveRevision()
+            }
+        }
+    }
+
+    private func pollArchiveRevision() async {
+        guard revisionRefreshInFlight == false else { return }
+        revisionRefreshInFlight = true
+        defer { revisionRefreshInFlight = false }
+
+        do {
+            let status = try await client.serviceStatus()
+            serviceStatus = status
+            guard let next = status.revision else { return }
+            guard let previous = observedRevision else {
+                observedRevision = next
+                return
+            }
+            guard next.revision > previous.revision else {
+                observedRevision = next
+                return
+            }
+
+            await refreshForRevisionChange(from: previous, to: next)
+            observedRevision = next
+            lastError = nil
+        } catch {
+            lastError = UserError(error)
+        }
+    }
+
+    private func refreshForRevisionChange(from previous: ArchiveRevision, to next: ArchiveRevision) async {
+        let archiveChanged = next.archiveContentRevision != previous.archiveContentRevision
+        let ocrChanged = next.ocrRevision != previous.ocrRevision
+        let settingsChanged = next.settingsRevision != previous.settingsRevision
+        let storageChanged = next.storageRevision != previous.storageRevision
+        let appPreferencesChanged = next.appPreferencesRevision != previous.appPreferencesRevision
+
+        if settingsChanged {
+            await refreshSettings()
+        }
+        if appPreferencesChanged {
+            refreshAppPreferences()
+        }
+        if archiveChanged || ocrChanged {
+            _ = await refreshRecentPreview()
+            clipboardHistoryRevision += 1
+        }
+        if storageChanged, doctorReport != nil {
+            await refreshDoctor()
+        }
+    }
+
     private func recentCoordinator() -> RecentPreviewRefreshCoordinator {
         if let recentRefreshCoordinator {
             return recentRefreshCoordinator
@@ -504,6 +583,12 @@ final class AppModel {
         }
         recentRefreshCoordinator = coordinator
         return coordinator
+    }
+
+    private func refreshAppPreferences() {
+        launchAtLoginEnabled = UserDefaults.standard.clipmemLaunchAtLoginEnabled
+        launchAtLoginStatus = LoginItemController.status()
+        updateStatus = UpdateStatus.load()
     }
 }
 

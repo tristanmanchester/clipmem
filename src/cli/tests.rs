@@ -8,8 +8,9 @@ use super::errors::classify_command_error;
 use super::formats::{OutputFormat, ProgressFormat, RecallOutputFormat};
 use super::parsing::RetentionValue;
 use super::schema::{
-    AgentsCommand, Cli, Command, HermesCommand, OcrCommand, OpenClawCommand, SettingsCommand,
-    SettingsIgnoreCommand, StorageCommand,
+    AgentsCommand, AppCommand, AppLaunchAtLoginCommand, AppPreferenceKey, AppSettingsCommand,
+    AppUpdateCheckCommand, Cli, Command, HermesCommand, OcrCommand, OpenClawCommand,
+    ServiceCommand, SettingsCommand, SettingsIgnoreCommand, StorageCommand,
 };
 use super::CliExitCode;
 
@@ -34,6 +35,21 @@ fn watch_command_parses_global_db_and_runtime_flags() {
             assert!(args.skip_initial);
         }
         other => panic!("expected watch command, got {other:?}"),
+    }
+}
+
+#[test]
+fn service_providers_parses_json_output() {
+    let cli = Cli::parse_from(["clipmem", "service", "providers", "--format", "json"]);
+
+    match cli.command {
+        Command::Service(args) => match args.command {
+            ServiceCommand::Providers(args) => {
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected service providers command, got {other:?}"),
+        },
+        other => panic!("expected service command, got {other:?}"),
     }
 }
 
@@ -85,6 +101,91 @@ fn agents_openclaw_commands_parse_install_and_doctor_flags() {
             other => panic!("expected openclaw command, got {other:?}"),
         },
         other => panic!("expected agents command, got {other:?}"),
+    }
+}
+
+#[test]
+fn agents_context_parses_json_output() {
+    let cli = Cli::parse_from(["clipmem", "agents", "context", "--format", "json"]);
+
+    match cli.command {
+        Command::Agents(args) => match args.command {
+            AgentsCommand::Context(args) => {
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected context command, got {other:?}"),
+        },
+        other => panic!("expected agents command, got {other:?}"),
+    }
+}
+
+#[test]
+fn app_settings_commands_parse_key_and_output() {
+    let cli = Cli::parse_from([
+        "clipmem",
+        "app",
+        "settings",
+        "set",
+        "default-query-mode",
+        "timeline",
+        "--format",
+        "json",
+    ]);
+
+    match cli.command {
+        Command::App(args) => match args.command {
+            AppCommand::Settings(args) => match args.command {
+                AppSettingsCommand::Set(args) => {
+                    assert_eq!(args.key, AppPreferenceKey::DefaultQueryMode);
+                    assert_eq!(args.value, "timeline");
+                    assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+                }
+                other => panic!("expected app settings set command, got {other:?}"),
+            },
+            other => panic!("expected app settings command, got {other:?}"),
+        },
+        other => panic!("expected app command, got {other:?}"),
+    }
+}
+
+#[test]
+fn app_state_commands_parse_output() {
+    let launch_cli = Cli::parse_from([
+        "clipmem",
+        "app",
+        "launch-at-login",
+        "set",
+        "on",
+        "--format",
+        "json",
+    ]);
+    let update_cli =
+        Cli::parse_from(["clipmem", "app", "update-check", "show", "--format", "json"]);
+
+    match launch_cli.command {
+        Command::App(args) => match args.command {
+            AppCommand::LaunchAtLogin(args) => match args.command {
+                AppLaunchAtLoginCommand::Set(args) => {
+                    assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+                }
+                other => panic!("expected app launch-at-login set command, got {other:?}"),
+            },
+            other => panic!("expected launch-at-login command, got {other:?}"),
+        },
+        other => panic!("expected app command, got {other:?}"),
+    }
+
+    match update_cli.command {
+        Command::App(args) => match args.command {
+            AppCommand::UpdateCheck(args) => match args.command {
+                AppUpdateCheckCommand::Show(args) => {
+                    assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+                }
+                other => panic!("expected app update-check show command, got {other:?}"),
+            },
+            other => panic!("expected update-check command, got {other:?}"),
+        },
+        other => panic!("expected app command, got {other:?}"),
     }
 }
 
@@ -547,6 +648,26 @@ fn storage_commands_parse_expected_arguments() {
         other => panic!("expected storage command, got {other:?}"),
     }
 
+    let candidates_cli = Cli::parse_from([
+        "clipmem",
+        "storage",
+        "image-candidates",
+        "--limit",
+        "5",
+        "--format",
+        "json",
+    ]);
+    match candidates_cli.command {
+        Command::Storage(args) => match args.command {
+            StorageCommand::ImageCandidates(args) => {
+                assert_eq!(args.limit, 5);
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected storage image-candidates command, got {other:?}"),
+        },
+        other => panic!("expected storage command, got {other:?}"),
+    }
+
     let optimize_cli = Cli::parse_from([
         "clipmem",
         "storage",
@@ -658,6 +779,17 @@ fn settings_commands_parse_policy_variants() {
         other => panic!("expected settings command, got {other:?}"),
     }
 
+    let reset_cli = Cli::parse_from(["clipmem", "settings", "reset", "--format", "json"]);
+    match reset_cli.command {
+        Command::Settings(args) => match args.command {
+            SettingsCommand::Reset(args) => {
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected settings reset command, got {other:?}"),
+        },
+        other => panic!("expected settings command, got {other:?}"),
+    }
+
     let ignore_cli =
         Cli::parse_from(["clipmem", "settings", "ignore", "add", "com.apple.Terminal"]);
     match ignore_cli.command {
@@ -683,6 +815,53 @@ fn ocr_commands_parse_status_and_run_options() {
                 assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
             }
             other => panic!("expected ocr status command, got {other:?}"),
+        },
+        other => panic!("expected ocr command, got {other:?}"),
+    }
+
+    let candidates_cli = Cli::parse_from([
+        "clipmem",
+        "ocr",
+        "candidates",
+        "--limit",
+        "5",
+        "--snapshot",
+        "42",
+        "--format",
+        "json",
+    ]);
+    match candidates_cli.command {
+        Command::Ocr(args) => match args.command {
+            OcrCommand::Candidates(args) => {
+                assert_eq!(args.limit, 5);
+                assert_eq!(args.snapshot, Some(42));
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected ocr candidates command, got {other:?}"),
+        },
+        other => panic!("expected ocr command, got {other:?}"),
+    }
+
+    let get_cli = Cli::parse_from(["clipmem", "ocr", "get", "abc123", "--format", "json"]);
+    match get_cli.command {
+        Command::Ocr(args) => match args.command {
+            OcrCommand::Get(args) => {
+                assert_eq!(args.raw_sha256, "abc123");
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected ocr get command, got {other:?}"),
+        },
+        other => panic!("expected ocr command, got {other:?}"),
+    }
+
+    let clear_cli = Cli::parse_from(["clipmem", "ocr", "clear", "abc123", "--format", "json"]);
+    match clear_cli.command {
+        Command::Ocr(args) => match args.command {
+            OcrCommand::Clear(args) => {
+                assert_eq!(args.raw_sha256, "abc123");
+                assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
+            }
+            other => panic!("expected ocr clear command, got {other:?}"),
         },
         other => panic!("expected ocr command, got {other:?}"),
     }

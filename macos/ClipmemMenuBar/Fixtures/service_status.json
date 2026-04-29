@@ -43,6 +43,17 @@
   "retention_seconds": 2592000,
   "retention": "30d",
   "ignored_bundle_id_count": 1,
+  "revision": {
+    "revision": 12,
+    "archive_content_revision": 7,
+    "settings_revision": 2,
+    "ocr_revision": 1,
+    "storage_revision": 1,
+    "service_revision": 1,
+    "app_preferences_revision": 0,
+    "last_change_kind": "archive_content",
+    "updated_at": "2026-04-29 12:00:00"
+  },
   "stale": false,
   "db_error": null,
   "watcher_binary_mismatch": false,

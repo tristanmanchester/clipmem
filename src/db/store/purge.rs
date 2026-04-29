@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use rusqlite::{OptionalExtension, TransactionBehavior};
 
+use super::revision::bump_revision_tx;
 use crate::db::sqlite_helpers::row_usize;
-use crate::db::types::{Database, PurgeReport, SnapshotDeletionReport};
+use crate::db::types::{ArchiveChangeKind, Database, PurgeReport, SnapshotDeletionReport};
 
 impl Database {
     pub(crate) fn forget_snapshot(
@@ -22,6 +23,7 @@ impl Database {
 
         tx.execute("DELETE FROM snapshots WHERE id = ?1", [snapshot_id])
             .context("delete snapshot")?;
+        bump_revision_tx(&tx, &[ArchiveChangeKind::ArchiveContent])?;
         tx.commit().context("commit forget transaction")?;
         Ok(report)
     }
@@ -52,6 +54,7 @@ impl Database {
                 [older_than_seconds_i64],
             )
             .context("delete expired snapshots")?;
+            bump_revision_tx(&tx, &[ArchiveChangeKind::ArchiveContent])?;
         }
 
         tx.commit().context("commit purge transaction")?;

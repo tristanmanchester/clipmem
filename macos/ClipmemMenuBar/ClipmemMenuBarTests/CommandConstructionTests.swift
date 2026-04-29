@@ -27,6 +27,15 @@ struct CommandConstructionTests {
         #expect(ClipmemCommand.storageOptimizeImages(dryRun: true, limit: nil).arguments.contains("--dry-run"))
         #expect(ClipmemCommand.storageOptimizeImagesProgress(dryRun: false, limit: 50).arguments == ["storage", "optimize-images", "--progress", "jsonl", "--limit", "50"])
         #expect(ClipmemCommand.storageOptimizeImagesProgress(dryRun: true, limit: nil).arguments.contains("--dry-run"))
+        #expect(ClipmemCommand.appSettingsShow().arguments == ["app", "settings", "show", "--format", "json"])
+        #expect(ClipmemCommand.appSettingsSet("default-query-mode", value: "timeline").arguments == ["app", "settings", "set", "default-query-mode", "timeline", "--format", "json"])
+        #expect(ClipmemCommand.appSettingsClear("binary-path-override").arguments == ["app", "settings", "clear", "binary-path-override", "--format", "json"])
+        #expect(ClipmemCommand.appLaunchAtLoginShow().arguments == ["app", "launch-at-login", "show", "--format", "json"])
+        #expect(ClipmemCommand.appLaunchAtLoginSet(true).arguments == ["app", "launch-at-login", "set", "on", "--format", "json"])
+        #expect(ClipmemCommand.appLaunchAtLoginSet(false).arguments == ["app", "launch-at-login", "set", "off", "--format", "json"])
+        #expect(ClipmemCommand.appLaunchAtLoginClear().arguments == ["app", "launch-at-login", "clear", "--format", "json"])
+        #expect(ClipmemCommand.appUpdateCheckShow().arguments == ["app", "update-check", "show", "--format", "json"])
+        #expect(ClipmemCommand.appUpdateCheckClear().arguments == ["app", "update-check", "clear", "--format", "json"])
     }
 
     @Test func filtersAppendExpectedFlags() {

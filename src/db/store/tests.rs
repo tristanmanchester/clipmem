@@ -64,6 +64,45 @@ pub(in crate::db) fn duplicate_snapshots_reuse_content_row_and_append_events() -
 }
 
 #[test]
+pub(in crate::db) fn store_capture_bumps_archive_revision_once_per_event() -> Result<()> {
+    let mut db = Database::open_in_memory()?;
+
+    let initial = db.archive_revision()?;
+    db.store_capture(&fake_snapshot(1, "git status"))?;
+    let after_first = db.archive_revision()?;
+    db.store_capture(&fake_snapshot(2, "git status"))?;
+    let after_second = db.archive_revision()?;
+
+    assert_eq!(initial.revision(), 0);
+    assert_eq!(after_first.revision(), 1);
+    assert_eq!(after_first.archive_content_revision(), 1);
+    assert_eq!(after_first.last_change_kind(), "archive_content");
+    assert_eq!(after_second.revision(), 2);
+    assert_eq!(after_second.archive_content_revision(), 2);
+    Ok(())
+}
+
+#[test]
+pub(in crate::db) fn settings_revision_only_changes_for_real_setting_mutations() -> Result<()> {
+    let mut db = Database::open_in_memory()?;
+
+    db.set_paused(true)?;
+    let changed = db.archive_revision()?;
+    db.set_paused(true)?;
+    let repeated = db.archive_revision()?;
+    db.add_ignored_bundle_id("com.apple.Terminal")?;
+    let ignored = db.archive_revision()?;
+
+    assert_eq!(changed.revision(), 1);
+    assert_eq!(changed.settings_revision(), 1);
+    assert_eq!(changed.last_change_kind(), "settings");
+    assert_eq!(repeated.revision(), changed.revision());
+    assert_eq!(ignored.revision(), 2);
+    assert_eq!(ignored.settings_revision(), 2);
+    Ok(())
+}
+
+#[test]
 pub(in crate::db) fn deferred_representation_cache_keeps_file_urls_searchable() -> Result<()> {
     let mut db = Database::open_in_memory()?;
     let snapshot = build_snapshot(

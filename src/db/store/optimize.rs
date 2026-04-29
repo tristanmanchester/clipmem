@@ -14,9 +14,13 @@ use super::ocr::rebuild_snapshot_ocr_cache;
 use super::rebuild::{
     rebuild_snapshot_summary, recompute_snapshot_fingerprint, snapshot_fingerprint_with_replacement,
 };
+use super::revision::bump_revision_tx;
 use crate::db::core::{clamp_result_limit, pragma_usize, storage_file_sizes};
 use crate::db::sqlite_helpers::{collect_rows, row_usize, usize_to_i64};
-use crate::db::types::{Database, ImageOptimizationProgressEvent, ImageOptimizationReport};
+use crate::db::types::{
+    ArchiveChangeKind, Database, ImageOptimizationCandidateSummary, ImageOptimizationProgressEvent,
+    ImageOptimizationReport,
+};
 use crate::model::{hash_bytes, truncate_chars};
 
 #[derive(Debug, Clone)]
@@ -88,6 +92,24 @@ impl Database {
             report: Box::new(report.clone()),
         })?;
         Ok(report)
+    }
+
+    pub(crate) fn image_optimization_candidate_summaries(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<ImageOptimizationCandidateSummary>> {
+        load_image_optimization_candidates(&self.conn, limit)?
+            .into_iter()
+            .map(|candidate| {
+                Ok(ImageOptimizationCandidateSummary::new(
+                    candidate.snapshot_id,
+                    candidate.item_index,
+                    candidate.uti,
+                    candidate.byte_len,
+                    candidate.raw_sha256,
+                ))
+            })
+            .collect()
     }
 
     fn process_image_optimization_candidates(
@@ -503,6 +525,13 @@ pub(in crate::db) fn replace_image_with_optimized_webp(
     )
     .context("update optimized snapshot fingerprint")?;
     rebuild_snapshot_ocr_cache(&tx, candidate.snapshot_id)?;
+    bump_revision_tx(
+        &tx,
+        &[
+            ArchiveChangeKind::ArchiveContent,
+            ArchiveChangeKind::Storage,
+        ],
+    )?;
 
     tx.commit()
         .context("commit image optimization transaction")?;

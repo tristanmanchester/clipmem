@@ -3,6 +3,8 @@ mod support;
 
 pub(crate) use self::support::*;
 
+#[path = "cli_commands/app_commands.rs"]
+mod app_commands;
 #[path = "cli_commands/formats_and_settings.rs"]
 mod formats_and_settings;
 #[path = "cli_commands/help_and_stats.rs"]

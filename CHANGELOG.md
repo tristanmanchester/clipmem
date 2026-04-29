@@ -9,6 +9,41 @@ versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Added an agent-native action parity contract that maps user-visible clipboard
+  outcomes to CLI and skill surfaces, and linked it from the CLI help, packaged
+  skills, and architecture docs.
+- Added a durable archive revision ledger that records archive, settings, OCR,
+  storage, and service changes so external CLI and agent mutations can be
+  observed by app and integration clients.
+- Added revision-aware menu bar refresh handling so the macOS app detects
+  external archive, settings, OCR, storage, and service changes made by agents
+  or other CLI clients.
+- Added `clipmem agents context`, a compact JSON/text context bundle for agents
+  that reports service health, capture policy, archive revision, stats, and the
+  maintained capability map.
+- Added `clipmem app settings` commands for reading, setting, and clearing menu
+  bar app preferences such as binary/database overrides, default recent hours,
+  default query mode, and hotkey enablement.
+- Added `clipmem app launch-at-login` and `clipmem app update-check` commands
+  for agent-readable menu bar app state, including the app-owned launch
+  preference bridge and cached update-check state.
+- Added primitive `clipmem ocr candidates` and `clipmem storage image-candidates`
+  inspection commands so agents can list queued OCR work and image optimization
+  candidates without running batch workflows.
+- Added `clipmem service providers --format json` for read-only service provider
+  discovery without starting, stopping, or reinstalling capture.
+- Added `clipmem settings reset` plus `clipmem ocr get` and `clipmem ocr clear`
+  so capture settings and per-hash OCR results have explicit agent-accessible
+  reset/read/delete operations.
+- Strengthened packaged agent skill policy around context preflights, primitive
+  command composition, low-confidence handling, exact-text quoting, and OS
+  follow-through actions.
+- Added menu bar Diagnostics discovery actions for copying agent context and
+  skill install commands, and documented the agent context path in getting
+  started and menu bar app docs.
+
 ### Changed
 
 - Refreshed the README menu bar popover screenshot to show Markdown rendering,

@@ -9,7 +9,7 @@ use crate::model::{
 use super::sqlite_helpers::{collect_rows, row_enum};
 
 pub(super) const SCHEMA: &str = include_str!("schema.sql");
-pub(super) const CURRENT_SCHEMA_VERSION: i64 = 17;
+pub(super) const CURRENT_SCHEMA_VERSION: i64 = 18;
 const LEGACY_PRERELEASE_COLUMNS: &[&str] = &["classification", "is_text"];
 
 pub(in crate::db) fn prepare_schema(conn: &mut Connection) -> Result<()> {
@@ -35,11 +35,17 @@ pub(in crate::db) fn prepare_schema(conn: &mut Connection) -> Result<()> {
     ensure_image_compression_columns(&tx)?;
     ensure_image_optimization_queue_index(&tx)?;
     ensure_representation_cache_deferred_column(&tx)?;
+    ensure_archive_revisions_table(&tx)?;
     tx.execute(
         "INSERT OR IGNORE INTO clipmem_settings (id, paused, retention_seconds, api_key_filter_enabled, ocr_enabled) VALUES (1, 0, NULL, 0, 0)",
         [],
     )
     .context("seed clipmem settings row")?;
+    tx.execute(
+        "INSERT OR IGNORE INTO archive_revisions (id) VALUES (1)",
+        [],
+    )
+    .context("seed archive revision row")?;
 
     tx.commit().context("commit schema transaction")?;
     Ok(())
@@ -283,6 +289,28 @@ pub(in crate::db) fn ensure_representation_cache_deferred_column(conn: &Connecti
         [],
     )
     .context("add representation_cache_deferred column")?;
+    Ok(())
+}
+
+pub(in crate::db) fn ensure_archive_revisions_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        r"
+            CREATE TABLE IF NOT EXISTS archive_revisions (
+                id                         INTEGER PRIMARY KEY CHECK (id = 1),
+                revision                   INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+                archive_content_revision   INTEGER NOT NULL DEFAULT 0 CHECK (archive_content_revision >= 0),
+                settings_revision          INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
+                ocr_revision               INTEGER NOT NULL DEFAULT 0 CHECK (ocr_revision >= 0),
+                storage_revision           INTEGER NOT NULL DEFAULT 0 CHECK (storage_revision >= 0),
+                service_revision           INTEGER NOT NULL DEFAULT 0 CHECK (service_revision >= 0),
+                app_preferences_revision   INTEGER NOT NULL DEFAULT 0 CHECK (app_preferences_revision >= 0),
+                last_change_kind           TEXT NOT NULL DEFAULT 'initialized',
+                updated_at                 TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        ",
+        [],
+    )
+    .context("create archive_revisions table")?;
     Ok(())
 }
 

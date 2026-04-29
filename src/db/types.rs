@@ -10,6 +10,30 @@ pub struct Database {
     pub(in crate::db) path: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::db) enum ArchiveChangeKind {
+    ArchiveContent,
+    Settings,
+    Ocr,
+    Storage,
+    Service,
+    #[allow(dead_code)]
+    AppPreferences,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ArchiveRevision {
+    pub(in crate::db) revision: u64,
+    pub(in crate::db) archive_content_revision: u64,
+    pub(in crate::db) settings_revision: u64,
+    pub(in crate::db) ocr_revision: u64,
+    pub(in crate::db) storage_revision: u64,
+    pub(in crate::db) service_revision: u64,
+    pub(in crate::db) app_preferences_revision: u64,
+    pub(in crate::db) last_change_kind: String,
+    pub(in crate::db) updated_at: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SearchMode {
     Auto,
@@ -127,6 +151,27 @@ pub(crate) struct OcrRunReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct OcrCandidateSummary {
+    pub(in crate::db) raw_sha256: String,
+    pub(in crate::db) byte_len: usize,
+    pub(in crate::db) snapshot_count: usize,
+    pub(in crate::db) updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct OcrResultRecord {
+    pub(in crate::db) raw_sha256: String,
+    pub(in crate::db) status: String,
+    pub(in crate::db) engine: Option<String>,
+    pub(in crate::db) recognition_level: Option<String>,
+    pub(in crate::db) text_value: Option<String>,
+    pub(in crate::db) error: Option<String>,
+    pub(in crate::db) attempt_count: usize,
+    pub(in crate::db) updated_at: String,
+    pub(in crate::db) snapshot_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct StorageFileSizes {
     pub(crate) db: u64,
     pub(crate) wal: u64,
@@ -173,6 +218,15 @@ pub(crate) struct ImageOptimizationReport {
     pub(crate) filesystem_saved_bytes: u64,
     pub(crate) filesystem_growth_bytes: u64,
     pub(crate) compact_recommended: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct ImageOptimizationCandidateSummary {
+    pub(in crate::db) snapshot_id: i64,
+    pub(in crate::db) item_index: i64,
+    pub(in crate::db) uti: String,
+    pub(in crate::db) byte_len: usize,
+    pub(in crate::db) raw_sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

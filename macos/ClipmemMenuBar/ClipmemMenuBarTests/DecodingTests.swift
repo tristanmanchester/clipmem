@@ -10,6 +10,8 @@ struct DecodingTests {
         #expect(report.launchagent.running == true)
         #expect(report.retention == "30d")
         #expect(report.dbSizeBytes == 12_582_912)
+        #expect(report.revision?.revision == 12)
+        #expect(report.revision?.archiveContentRevision == 7)
         #expect(report.watcherBinaryPath == "/Users/test/clipmem/target/debug/clipmem")
     }
 
@@ -238,6 +240,7 @@ struct DecodingTests {
             retentionSeconds: nil,
             retention: "forever",
             ignoredBundleIdCount: 0,
+            revision: nil,
             stale: stale,
             dbError: dbError,
             watcherBinaryMismatch: watcherBinaryMismatch,

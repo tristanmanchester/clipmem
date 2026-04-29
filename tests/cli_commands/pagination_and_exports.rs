@@ -390,6 +390,78 @@ fn ocr_commands_report_status_and_empty_backfill_runs() -> Result<()> {
 }
 
 #[test]
+fn ocr_candidates_lists_pending_hashes_without_processing() -> Result<()> {
+    let path = temp_db_path("ocr-candidates");
+    seed_database(&path, &[image_snapshot(1, b"not actually a png")])?;
+    let conn = Connection::open(&path)?;
+    let raw_sha: String = conn.query_row(
+        "SELECT raw_sha256 FROM item_representations WHERE kind = 'image'",
+        [],
+        |row| row.get(0),
+    )?;
+    conn.execute(
+        "INSERT INTO ocr_results (raw_sha256, status) VALUES (?1, 'pending')",
+        [&raw_sha],
+    )?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "candidates",
+        "--limit",
+        "1",
+        "--format",
+        "json",
+    ]);
+    let payload: Value =
+        serde_json::from_slice(&output.stdout).expect("ocr candidates JSON should parse");
+
+    assert!(output.status.success(), "{}", stderr_text(&output));
+    assert_eq!(payload.as_array().expect("array").len(), 1);
+    assert_eq!(payload[0]["raw_sha256"].as_str(), Some(raw_sha.as_str()));
+    assert_eq!(payload[0]["snapshot_count"].as_u64(), Some(1));
+
+    let get_output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "get",
+        raw_sha.as_str(),
+        "--format",
+        "json",
+    ]);
+    let get_payload: Value =
+        serde_json::from_slice(&get_output.stdout).expect("ocr get JSON should parse");
+
+    assert!(get_output.status.success(), "{}", stderr_text(&get_output));
+    assert_eq!(get_payload["raw_sha256"].as_str(), Some(raw_sha.as_str()));
+    assert_eq!(get_payload["status"].as_str(), Some("pending"));
+
+    let clear_output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "clear",
+        raw_sha.as_str(),
+        "--format",
+        "json",
+    ]);
+    let clear_payload: Value =
+        serde_json::from_slice(&clear_output.stdout).expect("ocr clear JSON should parse");
+
+    assert!(
+        clear_output.status.success(),
+        "{}",
+        stderr_text(&clear_output)
+    );
+    assert_eq!(clear_payload["pending"].as_u64(), Some(0));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn export_command_writes_raw_representation_bytes() -> Result<()> {
     let path = temp_db_path("export-bytes");
     let output_path = temp_artifact_path("export-bytes", ".bin");

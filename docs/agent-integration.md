@@ -5,6 +5,23 @@ and Hermes Agent can call directly. You can also install packaged
 skills that give agents structured knowledge of clipmem's commands,
 filters, and output schemas.
 
+The maintained agent-native capability map lives in
+[action parity](action-parity.md). It records which user-visible
+outcomes are available to agents, which commands provide them, which
+entity CRUD operations are supported, and which internal stores are
+excluded from CRUD scoring because they are derived or temporary state.
+
+Before multi-step work, run `clipmem agents context --format json` to collect a
+compact bundle with CLI version, database path, service health, capture policy,
+archive revision state, archive statistics, and a capability summary.
+
+Agents can inspect and change menu bar app preferences with
+`clipmem app settings show|set|clear --format json`, inspect or request
+launch-at-login changes with `clipmem app launch-at-login show|set|clear
+--format json`, and inspect cached update-check state with `clipmem app
+update-check show --format json`. App-state mutations bump the app-preferences
+archive revision so an open menu bar app can refresh from external CLI changes.
+
 ## Install the OpenClaw skill
 
 Install the packaged skill using the CLI rather than copying files
@@ -89,6 +106,13 @@ The packaged skills point agents at the JSON-first retrieval commands:
   matters
 - `clipmem get <snapshot-id> --format json` - when deeper nested
   detail is needed
+
+Agents that need to act on a recovered result can compose those
+commands with normal macOS shell primitives: pipe exact text to
+`pbcopy`, open recovered web URLs with `open`, reveal recovered file
+paths with `open -R`, or use `clipmem restore` when the whole stored
+pasteboard state should return to the clipboard. See the action parity
+map for the full outcome-to-command table.
 
 ## Manage the skill
 
@@ -189,5 +213,7 @@ as a thin wrapper around
   flattened text fields, and TOON skim output
 - [Command reference](command-reference.md) — exhaustive flag-level
   reference for every command
+- [Action parity](action-parity.md) — map user-visible outcomes to
+  agent-accessible commands and documented entity operations
 - [Troubleshooting](troubleshooting.md) — diagnose empty results,
   PATH issues, and database problems

@@ -69,11 +69,20 @@ say "clipboard", "copy", or "paste".
 6. Return the recovered content plus provenance such as `observed_at`,
    `app_name`, and `snapshot_id` when useful.
 
+## Capability map
+
+The repo-side agent-native action parity contract lives in
+`docs/action-parity.md`. Use it when you need the maintained map from
+user-visible outcomes to agent-accessible commands, entity CRUD expectations,
+and derived-cache boundaries.
+
 ## Critical behavior rules
 
+- Before answering from a stale, empty, or ambiguous archive, run `clipmem agents context --format json` and use the health, settings, revision, and stats summary to decide whether to broaden search or diagnose setup.
 - Always use `--format json` when you will parse the response. `--format toon`
   is for token-efficient enumeration only. `--format jsonl` is for streaming
   many rows into a pipeline. Never parse `md` or `text`.
+- Treat `recall` as a convenience ranking helper, not an authority. For uncertain cases, compose primitive commands in this order: `search`, `recent`, `timeline`, `get`, then OS follow-through such as `pbcopy`, `open`, or `open -R`.
 - Never claim "nothing found" until you have broadened the search once and
   checked `truncated` / `next_cursor`.
 - When `best_match_confidence` is `"low"` or there are several plausible hits,
@@ -119,6 +128,19 @@ Always pick the narrowest command that answers the question.
    single snapshot already in hand.
 6. **`clipmem export SNAPSHOT_ID --item N --uti UTI --out PATH`** - raw bytes
    for binary, image, or PDF payloads.
+7. **`clipmem ocr candidates`, `clipmem ocr get`, `clipmem ocr clear`, and
+   `clipmem storage image-candidates`** - inspect queued OCR or image
+   optimization work before running batch workflows, or clear one stale OCR
+   result.
+8. **`clipmem settings reset --format json`** - reset capture policy and ignored
+   apps when the user explicitly asks to restore defaults.
+9. **`clipmem service providers --format json`** - inspect service provider
+   state without starting or stopping capture.
+10. **`clipmem app settings`, `clipmem app launch-at-login`, or `clipmem app update-check`
+   with `--format json`** - inspect or change menu bar app preferences and
+   app-owned state when the user asks about app defaults.
+11. **`clipmem agents context --format json`** - compact health, settings,
+   revision, stats, and capability context before multi-step work.
 
 The full flag reference, JSON envelope, and kind values live in
 [references/commands.md](references/commands.md),

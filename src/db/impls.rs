@@ -1,11 +1,111 @@
 use crate::model::SearchHit;
 
 use super::types::{
-    CapturePolicy, CaptureSettings, CaptureSkipReason, OcrCandidate, OcrRunReport, OcrStatusReport,
-    Page, PurgeReport, RecentCursorState, RecentResults, RetrievalFilters, RetrievalKind,
-    SearchCursorState, SearchMode, SearchResults, SnapshotDeletionReport, TimelineCursorState,
-    TimelineResults, TimelineSort,
+    ArchiveChangeKind, ArchiveRevision, CapturePolicy, CaptureSettings, CaptureSkipReason,
+    ImageOptimizationCandidateSummary, OcrCandidate, OcrCandidateSummary, OcrResultRecord,
+    OcrRunReport, OcrStatusReport, Page, PurgeReport, RecentCursorState, RecentResults,
+    RetrievalFilters, RetrievalKind, SearchCursorState, SearchMode, SearchResults,
+    SnapshotDeletionReport, TimelineCursorState, TimelineResults, TimelineSort,
 };
+
+impl ArchiveChangeKind {
+    #[must_use]
+    pub(in crate::db) const fn as_str(self) -> &'static str {
+        match self {
+            Self::ArchiveContent => "archive_content",
+            Self::Settings => "settings",
+            Self::Ocr => "ocr",
+            Self::Storage => "storage",
+            Self::Service => "service",
+            Self::AppPreferences => "app_preferences",
+        }
+    }
+
+    #[must_use]
+    pub(in crate::db) const fn revision_column(self) -> &'static str {
+        match self {
+            Self::ArchiveContent => "archive_content_revision",
+            Self::Settings => "settings_revision",
+            Self::Ocr => "ocr_revision",
+            Self::Storage => "storage_revision",
+            Self::Service => "service_revision",
+            Self::AppPreferences => "app_preferences_revision",
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl ArchiveRevision {
+    #[must_use]
+    pub(crate) fn new(
+        revision: u64,
+        archive_content_revision: u64,
+        settings_revision: u64,
+        ocr_revision: u64,
+        storage_revision: u64,
+        service_revision: u64,
+        app_preferences_revision: u64,
+        last_change_kind: String,
+        updated_at: String,
+    ) -> Self {
+        Self {
+            revision,
+            archive_content_revision,
+            settings_revision,
+            ocr_revision,
+            storage_revision,
+            service_revision,
+            app_preferences_revision,
+            last_change_kind,
+            updated_at,
+        }
+    }
+
+    #[must_use]
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    #[must_use]
+    pub fn archive_content_revision(&self) -> u64 {
+        self.archive_content_revision
+    }
+
+    #[must_use]
+    pub fn settings_revision(&self) -> u64 {
+        self.settings_revision
+    }
+
+    #[must_use]
+    pub fn ocr_revision(&self) -> u64 {
+        self.ocr_revision
+    }
+
+    #[must_use]
+    pub fn storage_revision(&self) -> u64 {
+        self.storage_revision
+    }
+
+    #[must_use]
+    pub fn service_revision(&self) -> u64 {
+        self.service_revision
+    }
+
+    #[must_use]
+    pub fn app_preferences_revision(&self) -> u64 {
+        self.app_preferences_revision
+    }
+
+    #[must_use]
+    pub fn last_change_kind(&self) -> &str {
+        &self.last_change_kind
+    }
+
+    #[must_use]
+    pub fn updated_at(&self) -> &str {
+        &self.updated_at
+    }
+}
 
 impl SearchResults {
     #[must_use]
@@ -575,6 +675,120 @@ impl OcrStatusReport {
     #[must_use]
     pub(crate) fn snapshots_with_ocr_text(&self) -> usize {
         self.snapshots_with_ocr_text
+    }
+}
+
+impl OcrCandidateSummary {
+    #[must_use]
+    pub(crate) fn new(
+        raw_sha256: String,
+        byte_len: usize,
+        snapshot_count: usize,
+        updated_at: String,
+    ) -> Self {
+        Self {
+            raw_sha256,
+            byte_len,
+            snapshot_count,
+            updated_at,
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn raw_sha256(&self) -> &str {
+        &self.raw_sha256
+    }
+
+    #[must_use]
+    pub(crate) fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
+    #[must_use]
+    pub(crate) fn snapshot_count(&self) -> usize {
+        self.snapshot_count
+    }
+}
+
+impl OcrResultRecord {
+    #[allow(clippy::too_many_arguments)]
+    #[must_use]
+    pub(crate) fn new(
+        raw_sha256: String,
+        status: String,
+        engine: Option<String>,
+        recognition_level: Option<String>,
+        text_value: Option<String>,
+        error: Option<String>,
+        attempt_count: usize,
+        updated_at: String,
+        snapshot_count: usize,
+    ) -> Self {
+        Self {
+            raw_sha256,
+            status,
+            engine,
+            recognition_level,
+            text_value,
+            error,
+            attempt_count,
+            updated_at,
+            snapshot_count,
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn raw_sha256(&self) -> &str {
+        &self.raw_sha256
+    }
+
+    #[must_use]
+    pub(crate) fn status(&self) -> &str {
+        &self.status
+    }
+
+    #[must_use]
+    pub(crate) fn snapshot_count(&self) -> usize {
+        self.snapshot_count
+    }
+}
+
+impl ImageOptimizationCandidateSummary {
+    #[must_use]
+    pub(crate) fn new(
+        snapshot_id: i64,
+        item_index: i64,
+        uti: String,
+        byte_len: usize,
+        raw_sha256: String,
+    ) -> Self {
+        Self {
+            snapshot_id,
+            item_index,
+            uti,
+            byte_len,
+            raw_sha256,
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn snapshot_id(&self) -> i64 {
+        self.snapshot_id
+    }
+
+    #[must_use]
+    pub(crate) fn item_index(&self) -> i64 {
+        self.item_index
+    }
+
+    #[must_use]
+    pub(crate) fn uti(&self) -> &str {
+        &self.uti
+    }
+
+    #[must_use]
+    pub(crate) fn byte_len(&self) -> usize {
+        self.byte_len
     }
 }
 

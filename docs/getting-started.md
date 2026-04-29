@@ -54,6 +54,16 @@ If the watcher isn't running, start it:
 clipmem service start
 ```
 
+For agent sessions, collect the bounded machine-readable context bundle:
+
+```bash
+clipmem agents context --format json
+```
+
+This reports the database path, service health, capture policy, archive
+revision, archive statistics, and capability summary without dumping raw
+clipboard content.
+
 ## Run your first queries
 
 Recall something you copied:
@@ -115,3 +125,5 @@ status lines.
   and configure capture policy
 - [Output formats](output-formats.md) — choose the right format for
   scripts, agents, and terminal use
+- [Agent integration](agent-integration.md) — install packaged skills
+  and use the agent context/capability commands

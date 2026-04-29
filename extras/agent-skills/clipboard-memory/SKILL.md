@@ -47,8 +47,26 @@ Always pick the narrowest command that answers the question, and always pass `--
 3. **`clipmem search`** — direct lexical / FTS matching. Use when you need precise substring hits or the user gave you an exact phrase.
 4. **`clipmem get <snapshot_id>`** — nested item/representation detail for a single snapshot already in hand.
 5. **`clipmem export <snapshot_id> --item <n> --uti <uti> --out <path> [--force]`** — raw bytes. Use when the stored content is binary/image/PDF and `best_text` is empty or partial. Prefer a fresh output path; use `--force` only to replace an existing regular file.
+6. **`clipmem ocr candidates`, `clipmem ocr get`, `clipmem ocr clear`, and `clipmem storage image-candidates`** — inspect queued OCR or image optimization work before running batch workflows, or clear one stale OCR result.
+7. **`clipmem settings reset --format json`** — reset capture policy and ignored apps when the user explicitly asks to restore defaults.
+8. **`clipmem service providers --format json`** — inspect service provider state without starting or stopping capture.
+9. **`clipmem app settings`, `clipmem app launch-at-login`, or `clipmem app update-check` with `--format json`** — inspect or change menu bar app preferences and app-owned state when the user asks about app defaults.
+10. **`clipmem agents context --format json`** — compact health, settings, revision, stats, and capability context before multi-step work.
 
 The full flag reference, JSON envelope, and kind values live in [references/commands.md](references/commands.md), [references/json-schema.md](references/json-schema.md), and [references/examples.md](references/examples.md).
+
+## Critical behaviour rules
+
+- Before answering from a stale, empty, or ambiguous archive, run `clipmem agents context --format json` and use the health, settings, revision, and stats summary to decide whether to broaden search or diagnose setup.
+- Always use `--format json` when you will parse the response. `--format toon` is for token-efficient enumeration only. `--format jsonl` is for streaming many rows into a pipeline. Never parse `md` or `text`.
+- Treat `recall` as a convenience ranking helper, not an authority. For uncertain cases, compose primitive commands in this order: `search`, `recent`, `timeline`, `get`, then OS follow-through such as `pbcopy`, `open`, or `open -R`.
+- Never claim "nothing found" until you have broadened the search once and checked `truncated` / `next_cursor`.
+- When `best_match_confidence` is `"low"` or there are several plausible hits, present the top candidates instead of pretending certainty.
+- For exact-text requests, quote `best_text` verbatim. Do not paraphrase commands, SQL, code, URLs, or file paths unless the user asked for a summary.
+
+## Capability map
+
+The repo-side agent-native action parity contract lives in `docs/action-parity.md`. Use it when you need the maintained map from user-visible outcomes to agent-accessible commands, entity CRUD expectations, and derived-cache boundaries.
 
 ## Output format rule
 

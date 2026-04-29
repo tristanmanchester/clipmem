@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
-use crate::db::CaptureSkipReason;
+use crate::db::{ArchiveRevision, CaptureSkipReason};
 
 pub(in crate::cli) const DIRECT_LABEL: &str = "io.openclaw.clipmem.watch";
 pub(in crate::cli) const HOMEBREW_LABEL: &str = "homebrew.mxcl.clipmem";
@@ -73,6 +73,7 @@ pub(in crate::cli) struct ServiceStatusReport {
     pub(in crate::cli) retention_seconds: Option<u64>,
     pub(in crate::cli) retention: Option<String>,
     pub(in crate::cli) ignored_bundle_id_count: Option<usize>,
+    pub(in crate::cli) revision: Option<ArchiveRevision>,
     pub(in crate::cli) stale: bool,
     pub(in crate::cli) db_error: Option<String>,
     pub(in crate::cli) watcher_binary_mismatch: bool,

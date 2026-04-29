@@ -207,6 +207,16 @@ const CLI_COMMAND_KEYWORDS: &[&str] = &[
     "recent",
     "export",
     "doctor",
+    "agents context",
+    "app settings",
+    "app launch-at-login",
+    "app update-check",
+    "ocr candidates",
+    "ocr get",
+    "ocr clear",
+    "storage image-candidates",
+    "service providers",
+    "settings reset",
     // formats
     "json",
     "toon",
@@ -222,6 +232,23 @@ const KIND_VALUES: &[&str] = &[
 ];
 
 const EXIT_CODES: &[&str] = &["`0`", "`1`", "`2`", "`3`", "`4`", "`5`", "`6`"];
+
+const ACTION_PARITY_KEYWORDS: &[&str] = &[
+    "action parity",
+    "docs/action-parity.md",
+    "entity CRUD",
+    "agent-accessible commands",
+];
+
+const BEHAVIOR_RULE_KEYWORDS: &[&str] = &[
+    "clipmem agents context --format json",
+    "recall` as a convenience ranking helper",
+    "Never claim \"nothing found\"",
+    "best_match_confidence",
+    "quote `best_text` verbatim",
+    "pbcopy",
+    "open -R",
+];
 
 fn assert_contains_all(haystack: &str, needles: &[&str], where_: &Path) {
     for needle in needles {
@@ -250,6 +277,8 @@ fn both_skills_document_full_cli_surface() {
         // SKILL.md must name the core commands and the format rule so an
         // agent that only reads SKILL.md still knows they exist.
         assert_contains_all(&skill, CLI_COMMAND_KEYWORDS, &skill_path);
+        assert_contains_all(&skill, ACTION_PARITY_KEYWORDS, &skill_path);
+        assert_contains_all(&skill, BEHAVIOR_RULE_KEYWORDS, &skill_path);
 
         // commands.md is the deep reference — it must cover kinds and exits.
         assert_contains_all(&commands, CLI_COMMAND_KEYWORDS, &commands_path);

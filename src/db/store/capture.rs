@@ -5,8 +5,9 @@ use super::config::RESTORE_SUPPRESSION_WINDOW_SECONDS;
 use super::rebuild::{
     insert_item, rebuild_snapshot_projection_cache_for_snapshot, set_representation_cache_deferred,
 };
+use super::revision::bump_revision_tx;
 use crate::db::sqlite_helpers::usize_to_i64;
-use crate::db::types::{CaptureSkipReason, CaptureStoreOutcome, Database};
+use crate::db::types::{ArchiveChangeKind, CaptureSkipReason, CaptureStoreOutcome, Database};
 use crate::model::{CaptureStoreResult, ClipboardSnapshot};
 use crate::sensitive;
 
@@ -90,6 +91,7 @@ impl Database {
         }
         let event_id = tx.last_insert_rowid();
 
+        bump_revision_tx(&tx, &[ArchiveChangeKind::ArchiveContent])?;
         tx.commit().context("commit capture transaction")?;
 
         Ok(CaptureStoreResult::new(

@@ -29,6 +29,17 @@ pub(in crate::db) fn row_usize(row: &Row<'_>, index: usize) -> rusqlite::Result<
     })
 }
 
+pub(in crate::db) fn row_u64(row: &Row<'_>, index: usize) -> rusqlite::Result<u64> {
+    let value = row.get::<_, i64>(index)?;
+    u64::try_from(value).map_err(|source| {
+        rusqlite::Error::FromSqlConversionFailure(
+            index,
+            rusqlite::types::Type::Integer,
+            Box::new(source),
+        )
+    })
+}
+
 pub(in crate::db) fn row_enum<T>(row: &Row<'_>, index: usize) -> rusqlite::Result<T>
 where
     T: FromStr,

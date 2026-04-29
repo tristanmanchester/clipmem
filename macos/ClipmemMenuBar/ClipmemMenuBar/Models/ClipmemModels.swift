@@ -97,6 +97,7 @@ struct ServiceStatusReport: Decodable, Equatable, Sendable {
     var retentionSeconds: UInt64?
     var retention: String?
     var ignoredBundleIdCount: Int?
+    var revision: ArchiveRevision?
     var stale: Bool
     var dbError: String?
     var watcherBinaryMismatch: Bool
@@ -143,6 +144,18 @@ struct ServiceStatusReport: Decodable, Equatable, Sendable {
     private func providerIsConfigured(_ provider: ProviderStatus) -> Bool {
         provider.installed || provider.loaded || provider.running
     }
+}
+
+struct ArchiveRevision: Decodable, Equatable, Sendable {
+    var revision: UInt64
+    var archiveContentRevision: UInt64
+    var settingsRevision: UInt64
+    var ocrRevision: UInt64
+    var storageRevision: UInt64
+    var serviceRevision: UInt64
+    var appPreferencesRevision: UInt64
+    var lastChangeKind: String
+    var updatedAt: String
 }
 
 struct DoctorReport: Decodable, Equatable, Sendable {

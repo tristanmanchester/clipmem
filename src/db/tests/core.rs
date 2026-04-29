@@ -210,7 +210,7 @@ fn capture_policy_persists_across_reopen() -> Result<()> {
     let path = temp_db_path("capture-policy-persistence");
 
     {
-        let db = Database::open_or_init(&path)?;
+        let mut db = Database::open_or_init(&path)?;
         db.set_paused(true)?;
         db.set_api_key_filter_enabled(true)?;
         db.set_retention_seconds(Some(30 * 24 * 60 * 60))?;
@@ -237,7 +237,7 @@ fn capture_policy_persists_across_reopen() -> Result<()> {
 
 #[test]
 fn ocr_setting_defaults_to_off_and_toggles() -> Result<()> {
-    let db = Database::open_in_memory()?;
+    let mut db = Database::open_in_memory()?;
 
     assert!(!db.capture_settings()?.ocr_enabled());
     db.set_ocr_enabled(true)?;
@@ -260,6 +260,7 @@ fn ready_ocr_text_is_cached_deduped_and_searchable() -> Result<()> {
     ))?;
 
     assert_eq!(db.enqueue_ocr_for_snapshot(stored.snapshot_id())?, 1);
+    assert_eq!(db.archive_revision()?.ocr_revision(), 1);
     let candidates = db.next_ocr_candidates(25, None, false)?;
     assert_eq!(candidates.len(), 1);
     db.store_ocr_text(
@@ -268,6 +269,7 @@ fn ready_ocr_text_is_cached_deduped_and_searchable() -> Result<()> {
         "fast",
         "Invoice Total 42",
     )?;
+    assert_eq!(db.archive_revision()?.ocr_revision(), 2);
 
     let details = db
         .find_snapshot(stored.snapshot_id(), 10)?

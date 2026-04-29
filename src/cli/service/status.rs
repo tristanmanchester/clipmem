@@ -53,6 +53,7 @@ pub(crate) fn status_report(db_path: &Path) -> Result<ServiceStatusReport> {
         retention_seconds: database_status.retention_seconds,
         retention: database_status.retention,
         ignored_bundle_id_count: database_status.ignored_bundle_id_count,
+        revision: database_status.revision,
         stale,
         db_error: database_status.error,
         watcher_binary_mismatch,
@@ -143,6 +144,7 @@ struct ServiceDatabaseStatus {
     retention_seconds: Option<u64>,
     retention: Option<String>,
     ignored_bundle_id_count: Option<usize>,
+    revision: Option<crate::db::ArchiveRevision>,
     error: Option<String>,
 }
 
@@ -163,6 +165,7 @@ impl ServiceDatabaseStatus {
                 retention_seconds: None,
                 retention: None,
                 ignored_bundle_id_count: None,
+                revision: None,
                 error: None,
             };
         }
@@ -181,6 +184,7 @@ impl ServiceDatabaseStatus {
                 retention_seconds: policy.settings().retention_seconds(),
                 retention: Some(render_retention_value(policy.settings())),
                 ignored_bundle_id_count: Some(policy.ignored_bundle_id_count()),
+                revision: Some(db.archive_revision()?),
                 error: None,
             })
         }) {
@@ -195,6 +199,7 @@ impl ServiceDatabaseStatus {
                 retention_seconds: None,
                 retention: None,
                 ignored_bundle_id_count: None,
+                revision: None,
                 error: Some(error.to_string()),
             },
         }

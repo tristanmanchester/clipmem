@@ -85,6 +85,19 @@ CREATE TABLE IF NOT EXISTS clipmem_settings (
     representation_cache_deferred INTEGER NOT NULL DEFAULT 0 CHECK (representation_cache_deferred IN (0, 1))
 );
 
+CREATE TABLE IF NOT EXISTS archive_revisions (
+    id                         INTEGER PRIMARY KEY CHECK (id = 1),
+    revision                   INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    archive_content_revision   INTEGER NOT NULL DEFAULT 0 CHECK (archive_content_revision >= 0),
+    settings_revision          INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
+    ocr_revision               INTEGER NOT NULL DEFAULT 0 CHECK (ocr_revision >= 0),
+    storage_revision           INTEGER NOT NULL DEFAULT 0 CHECK (storage_revision >= 0),
+    service_revision           INTEGER NOT NULL DEFAULT 0 CHECK (service_revision >= 0),
+    app_preferences_revision   INTEGER NOT NULL DEFAULT 0 CHECK (app_preferences_revision >= 0),
+    last_change_kind           TEXT NOT NULL DEFAULT 'initialized',
+    updated_at                 TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS ignored_bundle_ids (
     bundle_id TEXT PRIMARY KEY
 );
