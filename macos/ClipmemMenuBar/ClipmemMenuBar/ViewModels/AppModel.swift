@@ -611,6 +611,10 @@ final class AppModel {
             observedRevision = next
             lastError = nil
         } catch {
+            if case ClipmemClientError.setupNeeded = error {
+                observedRevision = nil
+                return
+            }
             lastError = UserError(error)
         }
     }
@@ -620,8 +624,12 @@ final class AppModel {
         let ocrChanged = next.ocrRevision != previous.ocrRevision
         let settingsChanged = next.settingsRevision != previous.settingsRevision
         let storageChanged = next.storageRevision != previous.storageRevision
+        let serviceChanged = next.serviceRevision != previous.serviceRevision
         let appPreferencesChanged = next.appPreferencesRevision != previous.appPreferencesRevision
 
+        if serviceChanged {
+            await refreshStatus()
+        }
         if settingsChanged {
             await refreshSettings()
         }

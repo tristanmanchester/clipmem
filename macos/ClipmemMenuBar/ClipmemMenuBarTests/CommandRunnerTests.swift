@@ -346,10 +346,34 @@ struct HistoryExternalRefreshTests {
         #expect(history.selectedDetail == nil)
     }
 
-    @Test(arguments: [QueryMode.recall, .search, .diagnostics])
-    func externalHistoryRefreshIgnoresUserDrivenModes(mode: QueryMode) async {
+    @Test(arguments: [QueryMode.recall, .search])
+    func externalHistoryRefreshReloadsQueryModesWithoutClearingQuery(mode: QueryMode) async {
+        var requestedModes: [QueryMode] = []
+        var requestedQueries: [String] = []
         var loadCount = 0
-        let history = HistoryModel(mode: mode, appModel: AppModel()) { _, _, _, _ in
+        let history = HistoryModel(mode: mode, appModel: AppModel()) { mode, query, _, _ in
+            requestedModes.append(mode)
+            requestedQueries.append(query)
+            loadCount += 1
+            return ([Self.item(3)], nil)
+        }
+        history.query = "needle"
+        history.results = [Self.item(1)]
+        history.selectedID = 1
+
+        await history.refreshForExternalHistoryChange()
+
+        #expect(loadCount == 1)
+        #expect(requestedModes == [mode])
+        #expect(requestedQueries == ["needle"])
+        #expect(history.query == "needle")
+        #expect(history.results.map(\.snapshotId) == [3])
+        #expect(history.selectedID == 3)
+    }
+
+    @Test func externalHistoryRefreshIgnoresDiagnosticsMode() async {
+        var loadCount = 0
+        let history = HistoryModel(mode: .diagnostics, appModel: AppModel()) { _, _, _, _ in
             loadCount += 1
             return ([Self.item(3)], nil)
         }

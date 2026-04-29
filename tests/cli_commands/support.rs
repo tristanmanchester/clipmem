@@ -285,7 +285,6 @@ pub(crate) fn run_cli_with_env(args: &[&str], envs: &[(&str, &str)]) -> process:
         .expect("clipmem binary should execute with env")
 }
 
-#[cfg(target_os = "macos")]
 pub(crate) fn run_cli_with_owned_env(args: &[&str], envs: &[(String, String)]) -> process::Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_clipmem"));
     command.args(args);
