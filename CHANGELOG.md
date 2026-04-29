@@ -64,6 +64,8 @@ versioning where practical.
   link badges, and updated row icons.
 - Updated the ClawHub `clipboard-memory` skill package to 1.3.4 for the
   agent-native command and JSON contract updates.
+- Updated CI file-length limits for the larger agent-native command and
+  menu bar refresh implementation files.
 
 ### Fixed
 
