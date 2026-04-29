@@ -115,6 +115,25 @@ fn service_revision_reports_revision_without_service_probe() -> Result<()> {
     assert_eq!(payload["revision"].as_u64(), Some(1));
     assert_eq!(payload["archive_content_revision"].as_u64(), Some(1));
 
+    let text_output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "service",
+        "revision",
+    ]);
+    let text = stdout_text(&text_output);
+
+    assert!(
+        text_output.status.success(),
+        "{}",
+        stderr_text(&text_output)
+    );
+    assert_eq!(
+        text,
+        "revision=1 archive_content_revision=1 settings_revision=0 ocr_revision=0 storage_revision=0 service_revision=0 last_change_kind=archive_content\n"
+    );
+    assert!(!text.contains("app_preferences_revision"));
+
     cleanup_db(&path);
     Ok(())
 }

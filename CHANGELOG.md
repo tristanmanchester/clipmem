@@ -81,6 +81,8 @@ versioning where practical.
 - Fixed service revision recording so service start/stop/setup/uninstall does
   not create missing archive databases or fail completed service actions while
   recording best-effort app refresh metadata.
+- Fixed `service revision` text output to preserve its existing field layout
+  while keeping newer revision counters available in JSON output.
 - Fixed best-effort macOS app refresh notifications so detached `notifyutil`
   calls are reaped after signaling the menu bar app.
 - Fixed open menu bar app preference rehydration after external `clipmem app`

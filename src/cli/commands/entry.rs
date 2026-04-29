@@ -95,14 +95,13 @@ pub(in crate::cli) fn service_revision(db_path: &Path, args: &ServiceRevisionArg
         &revision,
         |revision| {
             format!(
-                "revision={} archive_content_revision={} settings_revision={} ocr_revision={} storage_revision={} service_revision={} app_preferences_revision={} last_change_kind={}\n",
+                "revision={} archive_content_revision={} settings_revision={} ocr_revision={} storage_revision={} service_revision={} last_change_kind={}\n",
                 revision.revision(),
                 revision.archive_content_revision(),
                 revision.settings_revision(),
                 revision.ocr_revision(),
                 revision.storage_revision(),
                 revision.service_revision(),
-                revision.app_preferences_revision(),
                 revision.last_change_kind()
             )
         },
