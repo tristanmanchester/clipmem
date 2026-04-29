@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use crate::archive::Database;
+
 use super::launchctl::homebrew_prefix_for_binary;
+use super::manage::bump_service_revision;
 use super::model::{ServiceProvider, ServiceProviderStatus, ServiceState};
 use super::status::{
     command_binary_path, configured_binary_path_from_plist, configured_binary_path_from_plist_xml,
@@ -45,6 +48,42 @@ fn homebrew_prefix_rejects_non_homebrew_paths() {
         homebrew_prefix_for_binary(Path::new("/Users/tristan/.cargo/bin/clipmem")),
         None
     );
+}
+
+#[test]
+fn service_revision_recording_is_best_effort_for_missing_archives() {
+    let path = std::env::temp_dir().join(format!(
+        "clipmem-service-test-{}-missing.sqlite3",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&path);
+
+    bump_service_revision(&path);
+
+    assert!(!path.exists());
+}
+
+#[test]
+fn service_revision_recording_updates_existing_archives() {
+    let dir = std::env::temp_dir().join(format!(
+        "clipmem-service-test-{}-existing",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).expect("test database directory should initialize");
+    let path = dir.join("clipmem.sqlite3");
+    let _ = std::fs::remove_file(&path);
+    let db = Database::open_or_init(&path).expect("test database should initialize");
+
+    bump_service_revision(&path);
+
+    assert_eq!(
+        db.archive_revision()
+            .expect("archive revision should load")
+            .service_revision(),
+        1
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]

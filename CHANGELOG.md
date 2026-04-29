@@ -78,6 +78,9 @@ versioning where practical.
   missing database path while clearing OCR state.
 - Fixed the `clipmem agents context` capability map so it advertises only the
   output formats that the context command accepts.
+- Fixed service revision recording so service start/stop/setup/uninstall does
+  not create missing archive databases or fail completed service actions while
+  recording best-effort app refresh metadata.
 - Fixed best-effort macOS app refresh notifications so detached `notifyutil`
   calls are reaped after signaling the menu bar app.
 - Fixed open menu bar app preference rehydration after external `clipmem app`

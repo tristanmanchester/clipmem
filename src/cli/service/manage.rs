@@ -26,7 +26,7 @@ pub(crate) fn setup(db_path: &Path) -> Result<SetupReport> {
     ensure_no_conflict(&status)?;
     let seed_capture = seed_capture(db_path)?;
     let action = start_with_provider(&context, &selection)?;
-    bump_service_revision(db_path)?;
+    bump_service_revision(db_path);
     notify_app_refresh();
     Ok(SetupReport {
         seed_capture,
@@ -41,7 +41,7 @@ pub(crate) fn start(db_path: &Path) -> Result<ServiceActionReport> {
     let selection = select_provider(&context);
     ensure_no_conflict(&status)?;
     let report = start_with_provider(&context, &selection)?;
-    bump_service_revision(db_path)?;
+    bump_service_revision(db_path);
     notify_app_refresh();
     Ok(report)
 }
@@ -59,7 +59,7 @@ pub(crate) fn stop(db_path: &Path) -> Result<ServiceActionReport> {
     } else {
         stop_direct_provider(&context)?
     };
-    bump_service_revision(db_path)?;
+    bump_service_revision(db_path);
     notify_app_refresh();
     Ok(report)
 }
@@ -77,7 +77,7 @@ pub(crate) fn uninstall(db_path: &Path) -> Result<ServiceActionReport> {
     } else {
         uninstall_direct_provider(&context)?
     };
-    bump_service_revision(db_path)?;
+    bump_service_revision(db_path);
     notify_app_refresh();
     Ok(report)
 }
@@ -249,9 +249,8 @@ fn seed_capture(db_path: &Path) -> Result<SeedCaptureOutcome> {
     }
 }
 
-fn bump_service_revision(db_path: &Path) -> Result<()> {
-    Database::open_or_init(db_path)?
-        .bump_service_revision()
-        .map(|_| ())
-        .context("record service revision")
+pub(super) fn bump_service_revision(db_path: &Path) {
+    if let Ok(db) = Database::open_existing(db_path) {
+        let _ = db.bump_service_revision();
+    }
 }
