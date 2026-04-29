@@ -155,10 +155,10 @@ fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
         ],
         &envs,
     );
+    assert!(output.status.success(), "{}", stderr_text(&output));
     let payload: Value =
         serde_json::from_slice(&output.stdout).expect("agents context JSON should parse");
 
-    assert!(output.status.success(), "{}", stderr_text(&output));
     assert_eq!(payload["schema_version"].as_u64(), Some(1));
     assert!(payload["generated_at"].as_str().is_some());
     assert_eq!(payload["db_exists"].as_bool(), Some(true));

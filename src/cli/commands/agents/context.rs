@@ -6,8 +6,10 @@ use serde::Serialize;
 use crate::cli::formats::OutputFormat;
 use crate::cli::output::print_json;
 use crate::cli::presentation::generated_at_now;
-use crate::cli::service::{status_report, ServiceStatusReport};
 use crate::db::{ArchiveRevision, Database, RetrievalFilters, StatsReport};
+
+#[cfg(target_os = "macos")]
+use crate::cli::service::{status_report, ServiceStatusReport};
 
 use super::super::app::{load_app_settings, load_launch_at_login, load_update_check};
 
@@ -144,6 +146,22 @@ struct AgentCapabilitySummary {
     action_parity_doc: &'static str,
 }
 
+struct AgentContextStatus {
+    db_exists: bool,
+    preferred_provider: String,
+    stale: bool,
+    recent_capture_at: Option<String>,
+    recent_capture_within_last_hour: Option<bool>,
+    watcher_running: bool,
+    watcher_binary_mismatch: bool,
+    paused: Option<bool>,
+    api_key_filter_enabled: Option<bool>,
+    retention_seconds: Option<u64>,
+    retention: Option<String>,
+    ignored_bundle_id_count: Option<usize>,
+    health: &'static str,
+}
+
 pub(in crate::cli) fn agent_context(db_path: &Path, format: OutputFormat) -> Result<()> {
     let context = build_agent_context(db_path)?;
     match format {
@@ -162,7 +180,7 @@ pub(in crate::cli) fn agent_context(db_path: &Path, format: OutputFormat) -> Res
 }
 
 fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
-    let status = status_report(db_path)?;
+    let status = load_agent_context_status(db_path)?;
     let generated_at = generated_at_now()?;
     let db_snapshot = if db_path.is_file() {
         let db = Database::open_existing(db_path)?;
@@ -202,12 +220,12 @@ fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
         db_path: db_path.display().to_string(),
         db_exists: status.db_exists,
         service: AgentServiceSummary {
-            health: service_health_label(&status).to_string(),
+            health: status.health.to_string(),
             preferred_provider: status.preferred_provider,
             stale: status.stale,
             recent_capture_at: status.recent_capture_at,
             recent_capture_within_last_hour: status.recent_capture_within_last_hour,
-            watcher_running: status.homebrew.running || status.launchagent.running,
+            watcher_running: status.watcher_running,
             watcher_binary_mismatch: status.watcher_binary_mismatch,
         },
         settings: AgentSettingsSummary {
@@ -346,6 +364,80 @@ fn build_agent_context(db_path: &Path) -> Result<AgentContextOutput> {
     })
 }
 
+#[cfg(target_os = "macos")]
+fn load_agent_context_status(db_path: &Path) -> Result<AgentContextStatus> {
+    let status = status_report(db_path)?;
+    let health = service_health_label(&status);
+    Ok(AgentContextStatus {
+        db_exists: status.db_exists,
+        preferred_provider: status.preferred_provider,
+        stale: status.stale,
+        recent_capture_at: status.recent_capture_at,
+        recent_capture_within_last_hour: status.recent_capture_within_last_hour,
+        watcher_running: status.homebrew.running || status.launchagent.running,
+        watcher_binary_mismatch: status.watcher_binary_mismatch,
+        paused: status.paused,
+        api_key_filter_enabled: status.api_key_filter_enabled,
+        retention_seconds: status.retention_seconds,
+        retention: status.retention,
+        ignored_bundle_id_count: status.ignored_bundle_id_count,
+        health,
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn load_agent_context_status(db_path: &Path) -> Result<AgentContextStatus> {
+    let db_exists = db_path.is_file();
+    if !db_exists {
+        return Ok(AgentContextStatus {
+            db_exists,
+            preferred_provider: "unsupported".to_string(),
+            stale: false,
+            recent_capture_at: None,
+            recent_capture_within_last_hour: None,
+            watcher_running: false,
+            watcher_binary_mismatch: false,
+            paused: None,
+            api_key_filter_enabled: None,
+            retention_seconds: None,
+            retention: None,
+            ignored_bundle_id_count: None,
+            health: "setup_needed",
+        });
+    }
+
+    let db = Database::open_existing(db_path)?;
+    let policy = db.capture_policy()?;
+    let settings = policy.settings();
+    let paused = settings.paused();
+    let recent_capture_within_last_hour = db.has_capture_within_hours(1)?;
+    let health = if paused {
+        "capture_paused"
+    } else {
+        "service_unsupported"
+    };
+
+    Ok(AgentContextStatus {
+        db_exists,
+        preferred_provider: "unsupported".to_string(),
+        stale: false,
+        recent_capture_at: db.latest_capture_observed_at()?,
+        recent_capture_within_last_hour: Some(recent_capture_within_last_hour),
+        watcher_running: false,
+        watcher_binary_mismatch: false,
+        paused: Some(paused),
+        api_key_filter_enabled: Some(settings.api_key_filter_enabled()),
+        retention_seconds: settings.retention_seconds(),
+        retention: Some(
+            settings
+                .retention_seconds()
+                .map_or_else(|| "forever".to_string(), |seconds| format!("{seconds}s")),
+        ),
+        ignored_bundle_id_count: Some(policy.ignored_bundle_id_count()),
+        health,
+    })
+}
+
 fn nonempty_option(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
         let trimmed = value.trim();
@@ -408,6 +500,7 @@ fn kind_breakdown(stats: &StatsReport) -> Vec<AgentKindSummary> {
         .collect()
 }
 
+#[cfg(target_os = "macos")]
 fn service_health_label(status: &ServiceStatusReport) -> &'static str {
     if status.conflict {
         "conflict"

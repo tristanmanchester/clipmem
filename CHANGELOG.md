@@ -69,6 +69,9 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `clipmem agents context --format json` on non-macOS test and
+  integration environments so it still returns database, settings, revision,
+  and capability metadata when macOS service probes are unavailable.
 - Fixed open menu bar app preference rehydration after external `clipmem app`
   mutations so database/binary overrides, launch-at-login, hotkey state, and
   cached update-check state refresh without restarting the app.
