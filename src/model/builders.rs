@@ -80,7 +80,9 @@ pub(crate) fn hash_bytes(bytes: &[u8]) -> String {
 pub(crate) fn classify_uti(uti: &str, text_value_present: bool) -> ClipboardKind {
     let lower = uti.to_ascii_lowercase();
 
-    if lower.contains("file-url") || lower.contains("nsfilenamespboardtype") {
+    if is_origin_metadata_uti(&lower) {
+        ClipboardKind::Binary
+    } else if is_file_url_uti(&lower) {
         ClipboardKind::FileUrl
     } else if lower.contains("html") {
         ClipboardKind::Html
@@ -102,7 +104,7 @@ pub(crate) fn classify_uti(uti: &str, text_value_present: bool) -> ClipboardKind
         || lower.contains("image")
     {
         ClipboardKind::Image
-    } else if lower.contains("url") || lower.contains("nsurlpboardtype") {
+    } else if is_url_uti(&lower) {
         ClipboardKind::Url
     } else if lower.contains("text")
         || lower.contains("string")
@@ -116,6 +118,18 @@ pub(crate) fn classify_uti(uti: &str, text_value_present: bool) -> ClipboardKind
     } else {
         ClipboardKind::Binary
     }
+}
+
+fn is_file_url_uti(lower: &str) -> bool {
+    lower.contains("file-url") || lower == "nsfilenamespboardtype"
+}
+
+fn is_url_uti(lower: &str) -> bool {
+    lower == "public.url" || lower == "nsurlpboardtype"
+}
+
+fn is_origin_metadata_uti(lower: &str) -> bool {
+    lower == "org.chromium.source-url" || lower == "org.chromium.source-title"
 }
 
 pub(crate) fn decode_text_bytes_strict(bytes: &[u8]) -> Option<String> {
@@ -698,6 +712,28 @@ mod tests {
         assert_eq!(representation.kind(), ClipboardKind::Binary);
         assert_eq!(representation.text_value(), Some("hello"));
         assert!(item.search_text().is_empty());
+    }
+
+    #[test]
+    fn chromium_source_url_metadata_is_not_copied_url_content() {
+        let item = build_item(
+            0,
+            vec![
+                build_representation(
+                    "org.chromium.source-url".to_string(),
+                    Some("https://example.com/source-page".to_string()),
+                    b"https://example.com/source-page".to_vec(),
+                ),
+                build_representation(
+                    "public.utf8-plain-text".to_string(),
+                    Some("selected article text".to_string()),
+                    b"selected article text".to_vec(),
+                ),
+            ],
+        );
+
+        assert_eq!(item.primary_kind(), ClipboardKind::PlainText);
+        assert_eq!(item.search_text(), "selected article text");
     }
 
     #[test]

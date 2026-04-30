@@ -87,6 +87,10 @@ impl FlattenedTextProjection {
         for item in items {
             for (representation_index, representation) in item.representations().iter().enumerate()
             {
+                if is_origin_metadata_uti(representation.uti()) {
+                    continue;
+                }
+
                 let Some(text_value) = representation.text_value() else {
                     continue;
                 };
@@ -328,6 +332,11 @@ fn best_text_priority(kind: ClipboardKind, text: &str) -> Option<u8> {
     })
 }
 
+fn is_origin_metadata_uti(uti: &str) -> bool {
+    let lower = uti.to_ascii_lowercase();
+    lower == "org.chromium.source-url" || lower == "org.chromium.source-title"
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::builders::{build_item, build_representation};
@@ -367,6 +376,31 @@ mod tests {
             &["/Users/test/Report Q2.txt".to_string()]
         );
         assert_eq!(projection.text_fragments().len(), 3);
+    }
+
+    #[test]
+    fn projection_excludes_chromium_source_url_metadata_from_urls() {
+        let item = build_item(
+            0,
+            vec![
+                build_representation(
+                    "org.chromium.source-url".to_string(),
+                    Some("https://example.com/source-page".to_string()),
+                    b"https://example.com/source-page".to_vec(),
+                ),
+                build_representation(
+                    "public.utf8-plain-text".to_string(),
+                    Some("selected article text".to_string()),
+                    b"selected article text".to_vec(),
+                ),
+            ],
+        );
+
+        let projection = FlattenedTextProjection::from_items(&[item]);
+
+        assert_eq!(projection.best_text(), "selected article text");
+        assert!(projection.urls().is_empty());
+        assert_eq!(projection.text_fragments().len(), 1);
     }
 
     #[test]

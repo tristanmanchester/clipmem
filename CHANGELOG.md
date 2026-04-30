@@ -16,6 +16,9 @@ versioning where practical.
   directories.
 - Fixed best-effort app refresh notifications so JSON mutation commands do not
   append `notifyutil` output after their JSON response on macOS.
+- Fixed Chrome clipboard captures so page-source metadata is not recorded as
+  copied URL/text content and Chrome-origin captures are attributed to Google
+  Chrome even if Codex is frontmost when the watch loop records them.
 
 ## 0.5.0 - 2026-04-29
 
