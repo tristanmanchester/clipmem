@@ -13,6 +13,7 @@
     "macos/ClipmemMenuBar/ClipmemMenuBar/ViewModels/AppModel.swift": 896,
     "src/cli/schema.rs": 1026,
     "src/cli/tests.rs": 964,
-    "src/db/impls.rs": 831
+    "src/db/impls.rs": 831,
+    "tests/cli_commands/search_and_retrieval.rs": 803
   }
 }

@@ -37,7 +37,11 @@ pub fn capture_snapshot() -> Result<ClipboardSnapshot> {
             }
         }
 
-        let origin_app = infer_origin_app_from_items(&items);
+        let origin_app = infer_origin_app_from_items(
+            &items,
+            frontmost_app_name.as_deref(),
+            frontmost_app_bundle_id.as_deref(),
+        );
         let mut capture = CaptureContext::new(change_count);
         if let Some(origin) = origin_app {
             capture = capture
@@ -119,22 +123,51 @@ fn current_frontmost_app() -> (Option<String>, Option<String>) {
     }
 }
 
-fn infer_origin_app_from_items(items: &[ClipboardItem]) -> Option<OriginApp> {
+fn infer_origin_app_from_items(
+    items: &[ClipboardItem],
+    frontmost_app_name: Option<&str>,
+    frontmost_app_bundle_id: Option<&str>,
+) -> Option<OriginApp> {
     let has_chromium_metadata = items.iter().any(|item| {
         item.representations()
             .iter()
             .any(|representation| is_chromium_origin_metadata_uti(representation.uti()))
     });
 
-    has_chromium_metadata.then(|| OriginApp {
-        name: "Google Chrome".to_string(),
-        bundle_id: "com.google.Chrome".to_string(),
-    })
+    if !has_chromium_metadata {
+        return None;
+    }
+
+    match frontmost_app_bundle_id {
+        Some(bundle_id) if is_chromium_browser_bundle_id(bundle_id) => Some(OriginApp {
+            name: frontmost_app_name.unwrap_or(bundle_id).to_string(),
+            bundle_id: bundle_id.to_string(),
+        }),
+        Some("com.openai.chat") | Some("com.openai.codex") => Some(OriginApp {
+            name: "Chromium Browser".to_string(),
+            bundle_id: "org.chromium.browser".to_string(),
+        }),
+        _ => None,
+    }
 }
 
 fn is_chromium_origin_metadata_uti(uti: &str) -> bool {
     let lower = uti.to_ascii_lowercase();
     lower == "org.chromium.source-url" || lower == "org.chromium.source-title"
+}
+
+fn is_chromium_browser_bundle_id(bundle_id: &str) -> bool {
+    matches!(
+        bundle_id,
+        "com.google.Chrome"
+            | "com.google.Chrome.canary"
+            | "com.microsoft.edgemac"
+            | "com.microsoft.edgemac.Canary"
+            | "com.brave.Browser"
+            | "company.thebrowser.Browser"
+            | "com.vivaldi.Vivaldi"
+            | "com.operasoftware.Opera"
+    )
 }
 
 fn read_item(item_index: usize, item: &NSPasteboardItem) -> ClipboardItem {
@@ -251,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn chromium_source_metadata_identifies_chrome_origin() {
+    fn chromium_source_metadata_preserves_frontmost_chrome_origin() {
         let items = vec![build_item(
             0,
             vec![
@@ -268,9 +301,65 @@ mod tests {
             ],
         )];
 
-        let origin = infer_origin_app_from_items(&items).expect("Chrome origin should be inferred");
+        let origin =
+            infer_origin_app_from_items(&items, Some("Google Chrome"), Some("com.google.Chrome"))
+                .expect("Chrome origin should be inferred");
 
         assert_eq!(origin.name, "Google Chrome");
         assert_eq!(origin.bundle_id, "com.google.Chrome");
+    }
+
+    #[test]
+    fn chromium_source_metadata_preserves_frontmost_edge_origin() {
+        let items = vec![build_item(
+            0,
+            vec![
+                build_representation(
+                    "org.chromium.source-url".to_string(),
+                    Some("https://example.com/source-page".to_string()),
+                    b"https://example.com/source-page".to_vec(),
+                ),
+                build_representation(
+                    "public.utf8-plain-text".to_string(),
+                    Some("selected article text".to_string()),
+                    b"selected article text".to_vec(),
+                ),
+            ],
+        )];
+
+        let origin = infer_origin_app_from_items(
+            &items,
+            Some("Microsoft Edge"),
+            Some("com.microsoft.edgemac"),
+        )
+        .expect("Edge origin should be inferred");
+
+        assert_eq!(origin.name, "Microsoft Edge");
+        assert_eq!(origin.bundle_id, "com.microsoft.edgemac");
+    }
+
+    #[test]
+    fn chromium_source_metadata_uses_generic_origin_when_codex_is_frontmost() {
+        let items = vec![build_item(
+            0,
+            vec![
+                build_representation(
+                    "org.chromium.source-url".to_string(),
+                    Some("https://example.com/source-page".to_string()),
+                    b"https://example.com/source-page".to_vec(),
+                ),
+                build_representation(
+                    "public.utf8-plain-text".to_string(),
+                    Some("selected article text".to_string()),
+                    b"selected article text".to_vec(),
+                ),
+            ],
+        )];
+
+        let origin = infer_origin_app_from_items(&items, Some("Codex"), Some("com.openai.codex"))
+            .expect("generic Chromium origin should be inferred");
+
+        assert_eq!(origin.name, "Chromium Browser");
+        assert_eq!(origin.bundle_id, "org.chromium.browser");
     }
 }
