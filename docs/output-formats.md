@@ -41,10 +41,10 @@ scripts and agents.
 | `doctor` | `text` | `text`, `json` (via `--json`), `human` |
 | `export` | `text` | `text`, `json`, `human` |
 
-`--json` is a compatibility alias for `--format json` on `search`,
-`recent`, `timeline`, `stats`, `get`, `restore`, `forget`, `purge`,
-`storage compact`, `storage optimize-images`, `export`, `ocr status`,
-`ocr run`, `capture-once`, and `doctor`.
+`--json` is a compatibility alias for `--format json` on `recall`,
+`search`, `recent`, `timeline`, `stats`, `get`, `restore`, `forget`,
+`purge`, `storage compact`, `storage optimize-images`, `export`,
+`ocr status`, `ocr run`, `capture-once`, and `doctor`.
 
 `--human` is a compatibility alias for `--format human` where format
 selection is available. For commands that use a JSON-only boolean flag,

@@ -96,6 +96,7 @@ Best-first ranked answer with alternatives.
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--format` | `md\|json\|toon\|human` | `md` | Output format |
+| `--json` | flag | — | Alias for `--format json` |
 | `--human` | flag | — | Alias for `--format human` |
 | `--mode` | `auto\|fts\|literal` | `auto` | Search mode |
 | `--limit` | 1-250 | 5 | Ranked candidates to consider |
