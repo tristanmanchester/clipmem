@@ -122,6 +122,30 @@ fn unsupported_format_exit_with_code_4_and_write_only_stderr() -> Result<()> {
 }
 
 #[test]
+fn get_rejects_unsupported_format_before_opening_database() -> Result<()> {
+    let path = temp_db_path("get-unsupported-format-missing-db");
+    cleanup_db(&path);
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "get",
+        "1",
+        "--format",
+        "toon",
+    ]);
+
+    assert_eq!(status_code(&output), 4);
+    assert!(stdout_text(&output).is_empty());
+    assert!(
+        stderr_text(&output).contains("format toon is only supported for flattened list outputs")
+    );
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn db_error_exit_with_code_5_and_write_only_stderr() -> Result<()> {
     let dir = temp_test_dir("db-error-dir");
     fs::create_dir_all(&dir)?;

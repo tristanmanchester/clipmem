@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `clipmem get --format toon` so it reports the unsupported output format
+  before attempting to open the archive database.
 - Updated the packaged `clipboard-memory` skill to 1.3.5 for the refreshed
   command reference and settings JSON output documentation.
 - Fixed settings mutation commands so `settings pause`, `settings api-key-filter`,

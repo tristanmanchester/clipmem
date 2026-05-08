@@ -11,6 +11,7 @@ use crate::cli::output::{
 };
 use crate::cli::presentation::{
     emit_get_output, emit_list_output, emit_stats_output, generated_at_now,
+    require_get_output_format,
 };
 use crate::cli::schema::{GetArgs, RecentArgs, SearchArgs, StatsArgs, TimelineArgs};
 
@@ -214,7 +215,7 @@ pub(in crate::cli) fn stats(db_path: &Path, args: &StatsArgs) -> Result<()> {
 }
 
 pub(in crate::cli) fn show_snapshot(db_path: &Path, args: &GetArgs) -> Result<()> {
-    let format = args.output.resolved()?;
+    let format = require_get_output_format(args.output.resolved()?)?;
     let filters = normalize_retrieval_filters(&args.filters)?;
     let db = open_existing_db(db_path)?;
     let snapshot =

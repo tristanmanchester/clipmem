@@ -67,27 +67,36 @@ pub(in crate::cli) fn emit_list_output(
 }
 
 pub(in crate::cli) fn emit_get_output(format: OutputFormat, envelope: &GetEnvelope) -> Result<()> {
+    require_get_output_format(format)?;
+
     match format {
         OutputFormat::Text => {
             print!("{}", render_get_text(envelope));
             Ok(())
         }
         OutputFormat::Json => print_json(envelope),
-        OutputFormat::Jsonl => {
-            print_json_line(envelope)
-        }
+        OutputFormat::Jsonl => print_json_line(envelope),
         OutputFormat::Md => {
             print!("{}", render_get_markdown(envelope));
             Ok(())
         }
-        OutputFormat::Toon => Err(UnsupportedFormatError::new(
-            "format toon is only supported for flattened list outputs; `clipmem get` returns nested snapshot detail",
-        )
-        .into()),
+        OutputFormat::Toon => {
+            unreachable!("unsupported get output format should be rejected earlier")
+        }
         OutputFormat::Human => {
             print!("{}", render_get_human(envelope));
             Ok(())
         }
+    }
+}
+
+pub(in crate::cli) fn require_get_output_format(format: OutputFormat) -> Result<OutputFormat> {
+    match format {
+        OutputFormat::Toon => Err(UnsupportedFormatError::new(
+            "format toon is only supported for flattened list outputs; `clipmem get` returns nested snapshot detail",
+        )
+        .into()),
+        _ => Ok(format),
     }
 }
 
