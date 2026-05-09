@@ -90,7 +90,7 @@ fn app_settings(db_path: &Path, args: &AppSettingsArgs) -> Result<()> {
 }
 
 fn app_settings_show(args: &AppSettingsShowArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app settings")?;
     let output = load_app_settings()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -100,7 +100,7 @@ fn app_settings_show(args: &AppSettingsShowArgs) -> Result<()> {
 }
 
 fn app_settings_set(db_path: &Path, args: &AppSettingsSetArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app settings")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     let value = parse_app_preference_value(args.key, &args.value)?;
     set_preference(args.key, value)?;
@@ -115,7 +115,7 @@ fn app_settings_set(db_path: &Path, args: &AppSettingsSetArgs) -> Result<()> {
 }
 
 fn app_settings_clear(db_path: &Path, args: &AppSettingsClearArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app settings")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     clear_preference(args.key)?;
     let paths = app_preference_revision_paths_after_mutation(db_path, previous_paths)?;
@@ -137,7 +137,7 @@ fn app_launch_at_login(db_path: &Path, args: &AppLaunchAtLoginArgs) -> Result<()
 }
 
 fn app_launch_at_login_show(args: &AppLaunchAtLoginShowArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app launch-at-login")?;
     let output = load_launch_at_login()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -147,7 +147,7 @@ fn app_launch_at_login_show(args: &AppLaunchAtLoginShowArgs) -> Result<()> {
 }
 
 fn app_launch_at_login_set(db_path: &Path, args: &AppLaunchAtLoginSetArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app launch-at-login")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     let enabled = matches!(args.state, ToggleState::On);
     set_named_preference(LAUNCH_AT_LOGIN_ENABLED_KEY, Value::Bool(enabled))?;
@@ -163,7 +163,7 @@ fn app_launch_at_login_set(db_path: &Path, args: &AppLaunchAtLoginSetArgs) -> Re
 }
 
 fn app_launch_at_login_clear(db_path: &Path, args: &AppLaunchAtLoginClearArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app launch-at-login")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     clear_named_preference(LAUNCH_AT_LOGIN_ENABLED_KEY)?;
     clear_named_preference(DID_CONFIGURE_LAUNCH_AT_LOGIN_KEY)?;
@@ -186,7 +186,7 @@ fn app_update_check(db_path: &Path, args: &AppUpdateCheckArgs) -> Result<()> {
 }
 
 fn app_update_check_show(args: &AppUpdateCheckShowArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app update-check")?;
     let output = load_update_check()?;
     emit_json_or_text(
         format == OutputFormat::Json,
@@ -196,7 +196,7 @@ fn app_update_check_show(args: &AppUpdateCheckShowArgs) -> Result<()> {
 }
 
 fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app update-check")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     let release = fetch_latest_release()?;
     let checked_at = unix_timestamp_now()?;
@@ -225,7 +225,7 @@ fn app_update_check_run(db_path: &Path, args: &AppUpdateCheckRunArgs) -> Result<
 }
 
 fn app_update_check_clear(db_path: &Path, args: &AppUpdateCheckClearArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app update-check")?;
     let previous_paths = app_preference_revision_paths(db_path)?;
     clear_named_preference(CACHED_LATEST_VERSION_KEY)?;
     clear_named_preference(CACHED_LATEST_RELEASE_URL_KEY)?;
@@ -241,16 +241,16 @@ fn app_update_check_clear(db_path: &Path, args: &AppUpdateCheckClearArgs) -> Res
 }
 
 fn app_quit(args: &AppQuitArgs) -> Result<()> {
-    let format = require_app_settings_format(args.output.resolved()?)?;
+    let format = require_app_output_format(args.output.resolved()?, "app quit")?;
     let output = request_menu_bar_app_quit()?;
     emit_json_or_text(format == OutputFormat::Json, &output, render_quit_text)
 }
 
-fn require_app_settings_format(format: OutputFormat) -> Result<OutputFormat> {
+fn require_app_output_format(format: OutputFormat, command_name: &str) -> Result<OutputFormat> {
     match format {
         OutputFormat::Text | OutputFormat::Json | OutputFormat::Human => Ok(format),
         other => Err(crate::cli::errors::UnsupportedFormatError::new(format!(
-            "app settings only supports `text`, `json`, and `human` output, got `{}`",
+            "{command_name} only supports `text`, `json`, and `human` output, got `{}`",
             other.as_str()
         ))
         .into()),
