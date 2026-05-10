@@ -241,6 +241,29 @@ fn agents_context_reports_revision_stats_and_capabilities() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn agents_context_rejects_unsupported_format_before_opening_database() -> Result<()> {
+    let path = temp_db_path("agents-context-unsupported-format");
+    fs::write(&path, b"not a sqlite database")?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "agents",
+        "context",
+        "--format",
+        "toon",
+    ]);
+
+    assert_eq!(status_code(&output), 4);
+    assert!(stdout_text(&output).is_empty());
+    assert!(stderr_text(&output)
+        .contains("agents context only supports `text`, `json`, `md`, and `human` output"));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
 #[cfg(target_os = "macos")]
 #[test]
 fn setup_reenables_disabled_direct_launchagent_before_bootstrap() -> Result<()> {

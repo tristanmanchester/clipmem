@@ -163,12 +163,24 @@ struct AgentContextStatus {
 }
 
 pub(in crate::cli) fn agent_context(db_path: &Path, format: OutputFormat) -> Result<()> {
+    let format = require_agent_context_output_format(format)?;
     let context = build_agent_context(db_path)?;
     match format {
         OutputFormat::Json => print_json(&context),
         OutputFormat::Text | OutputFormat::Human | OutputFormat::Md => {
             print!("{}", render_agent_context_text(&context));
             Ok(())
+        }
+        OutputFormat::Jsonl | OutputFormat::Toon => {
+            unreachable!("unsupported agents context format should be rejected earlier")
+        }
+    }
+}
+
+fn require_agent_context_output_format(format: OutputFormat) -> Result<OutputFormat> {
+    match format {
+        OutputFormat::Text | OutputFormat::Json | OutputFormat::Md | OutputFormat::Human => {
+            Ok(format)
         }
         OutputFormat::Jsonl | OutputFormat::Toon => {
             Err(crate::cli::errors::UnsupportedFormatError::new(

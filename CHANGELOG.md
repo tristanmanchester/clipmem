@@ -13,6 +13,8 @@ versioning where practical.
 
 - Fixed `clipmem get --format toon` so it reports the unsupported output format
   before attempting to open the archive database.
+- Fixed `clipmem agents context --format toon/jsonl` so it reports the
+  unsupported output format before inspecting the archive database.
 - Fixed unsupported output format errors for `clipmem app launch-at-login`,
   `clipmem app update-check`, and `clipmem app quit` so they name the command
   that rejected the format instead of reporting `app settings`.
