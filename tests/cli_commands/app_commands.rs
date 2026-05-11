@@ -187,6 +187,45 @@ fn app_settings_reject_invalid_recent_hours_and_query_mode() {
 }
 
 #[test]
+fn app_settings_set_validates_value_before_reading_override_store() -> Result<()> {
+    let path = temp_db_path("app-settings-invalid-before-store");
+    let store_path = temp_artifact_path("app-settings-invalid-before-store", ".json");
+    fs::write(&store_path, b"{not json")?;
+    let envs = vec![(
+        "CLIPMEM_APP_SETTINGS_STORE".to_string(),
+        store_path.display().to_string(),
+    )];
+
+    let output = run_cli_with_owned_env(
+        &[
+            "--db",
+            path.to_str().expect("db path should be UTF-8"),
+            "app",
+            "settings",
+            "set",
+            "default-recent-hours",
+            "0",
+        ],
+        &envs,
+    );
+    let stderr = stderr_text(&output);
+
+    assert!(!output.status.success());
+    assert!(
+        stderr.contains("default-recent-hours must be greater than zero"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("parse app settings override store"),
+        "{stderr}"
+    );
+
+    cleanup_db(&path);
+    cleanup_temp_artifact(&store_path);
+    Ok(())
+}
+
+#[test]
 fn app_commands_report_unsupported_format_with_command_name() {
     let cases: &[(&[&str], &str)] = &[
         (

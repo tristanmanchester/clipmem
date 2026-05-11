@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `clipmem app settings set` so invalid preference values are rejected
+  before reading the app settings override store.
 - Fixed `clipmem get --format toon` so it reports the unsupported output format
   before attempting to open the archive database.
 - Fixed `clipmem agents context --format toon/jsonl` so it reports the
