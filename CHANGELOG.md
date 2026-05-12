@@ -13,6 +13,8 @@ versioning where practical.
 
 - Fixed `clipmem app settings set` so invalid preference values are rejected
   before reading the app settings override store.
+- Fixed retrieval pagination commands so invalid cursor tokens are rejected
+  before attempting to open the archive database.
 - Fixed `clipmem get --format toon` so it reports the unsupported output format
   before attempting to open the archive database.
 - Fixed `clipmem agents context --format toon/jsonl` so it reports the

@@ -31,12 +31,12 @@ pub(in crate::cli) fn search(db_path: &Path, args: &SearchArgs) -> Result<()> {
     let format = args.output.resolved()?;
     let filters = normalize_retrieval_filters(&args.filters)?;
     let search_mode = args.search_mode();
-    let db = open_existing_db(db_path)?;
     let cursor = args
         .cursor
         .as_deref()
         .map(|value| parse_search_cursor(value, &args.query, search_mode, &filters))
         .transpose()?;
+    let db = open_existing_db(db_path)?;
     let results = anyhow::Context::with_context(
         query_search_results(&db, args, &filters, cursor.as_ref()),
         || format!("search failed for query '{}'", args.query),
@@ -91,12 +91,12 @@ pub(in crate::cli) fn search(db_path: &Path, args: &SearchArgs) -> Result<()> {
 pub(in crate::cli) fn recent(db_path: &Path, args: &RecentArgs) -> Result<()> {
     let format = args.output.resolved()?;
     let filters = normalize_retrieval_filters(&args.filters)?;
-    let db = open_existing_db(db_path)?;
     let cursor = args
         .cursor
         .as_deref()
         .map(|value| parse_recent_cursor(value, &filters))
         .transpose()?;
+    let db = open_existing_db(db_path)?;
     let hits = anyhow::Context::with_context(
         db.recent_page(args.limit, &filters, cursor.as_ref()),
         || "recent query failed".to_string(),
@@ -146,12 +146,12 @@ pub(in crate::cli) fn timeline(db_path: &Path, args: &TimelineArgs) -> Result<()
     let format = args.output.resolved()?;
     let filters = normalize_retrieval_filters(&args.filters)?;
     let timeline_sort = args.timeline_sort();
-    let db = open_existing_db(db_path)?;
     let cursor = args
         .cursor
         .as_deref()
         .map(|value| parse_timeline_cursor(value, &filters, timeline_sort))
         .transpose()?;
+    let db = open_existing_db(db_path)?;
     let events = anyhow::Context::with_context(
         db.timeline_page(args.limit, &filters, timeline_sort, cursor.as_ref()),
         || "timeline query failed".to_string(),
