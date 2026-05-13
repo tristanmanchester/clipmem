@@ -464,6 +464,7 @@ fn ocr_candidates_lists_pending_hashes_without_processing() -> Result<()> {
 #[test]
 fn ocr_read_commands_do_not_initialize_missing_database() {
     let path = temp_db_path("ocr-missing-read");
+    let valid_hash = "0".repeat(64);
 
     let candidates = run_cli(&[
         "--db",
@@ -478,7 +479,7 @@ fn ocr_read_commands_do_not_initialize_missing_database() {
         path.to_str().expect("db path should be UTF-8"),
         "ocr",
         "get",
-        "abc123",
+        valid_hash.as_str(),
         "--format",
         "json",
     ]);
@@ -487,7 +488,7 @@ fn ocr_read_commands_do_not_initialize_missing_database() {
         path.to_str().expect("db path should be UTF-8"),
         "ocr",
         "clear",
-        "abc123",
+        valid_hash.as_str(),
         "--format",
         "json",
     ]);
@@ -499,6 +500,27 @@ fn ocr_read_commands_do_not_initialize_missing_database() {
     assert!(stderr_text(&get).contains("Run `clipmem setup`"));
     assert!(stderr_text(&clear).contains("Run `clipmem setup`"));
     assert!(!path.exists());
+}
+
+#[test]
+fn ocr_get_rejects_malformed_hash_before_opening_database() -> Result<()> {
+    let path = temp_db_path("ocr-invalid-hash-corrupt-db");
+    fs::write(&path, b"not a sqlite database")?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "ocr",
+        "get",
+        "not-a-sha256",
+    ]);
+
+    assert_eq!(status_code(&output), 2);
+    assert!(stdout_text(&output).is_empty());
+    assert!(stderr_text(&output).contains("invalid SHA-256 hash"));
+
+    cleanup_db(&path);
+    Ok(())
 }
 
 #[test]

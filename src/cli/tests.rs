@@ -896,11 +896,19 @@ fn ocr_commands_parse_status_and_run_options() {
         other => panic!("expected ocr command, got {other:?}"),
     }
 
-    let get_cli = Cli::parse_from(["clipmem", "ocr", "get", "abc123", "--format", "json"]);
+    let raw_hash = "a".repeat(64);
+    let get_cli = Cli::parse_from([
+        "clipmem",
+        "ocr",
+        "get",
+        raw_hash.as_str(),
+        "--format",
+        "json",
+    ]);
     match get_cli.command {
         Command::Ocr(args) => match args.command {
             OcrCommand::Get(args) => {
-                assert_eq!(args.raw_sha256, "abc123");
+                assert_eq!(args.raw_sha256, raw_hash);
                 assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
             }
             other => panic!("expected ocr get command, got {other:?}"),
@@ -908,11 +916,19 @@ fn ocr_commands_parse_status_and_run_options() {
         other => panic!("expected ocr command, got {other:?}"),
     }
 
-    let clear_cli = Cli::parse_from(["clipmem", "ocr", "clear", "abc123", "--format", "json"]);
+    let raw_hash = "b".repeat(64);
+    let clear_cli = Cli::parse_from([
+        "clipmem",
+        "ocr",
+        "clear",
+        raw_hash.as_str(),
+        "--format",
+        "json",
+    ]);
     match clear_cli.command {
         Command::Ocr(args) => match args.command {
             OcrCommand::Clear(args) => {
-                assert_eq!(args.raw_sha256, "abc123");
+                assert_eq!(args.raw_sha256, raw_hash);
                 assert_eq!(args.output.resolved().unwrap(), OutputFormat::Json);
             }
             other => panic!("expected ocr clear command, got {other:?}"),

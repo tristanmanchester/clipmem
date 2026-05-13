@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed OCR hash commands so malformed `ocr get` and `ocr clear` hashes are
+  rejected during CLI parsing before opening the archive database.
 - Fixed `clipmem app settings set` so invalid preference values are rejected
   before reading the app settings override store.
 - Fixed retrieval pagination commands so invalid cursor tokens are rejected

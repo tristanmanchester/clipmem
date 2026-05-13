@@ -19,7 +19,7 @@ use super::help::{
 use super::parsing::{
     parse_bounded_limit, parse_duration_value, parse_item_index, parse_nonnegative_bytes,
     parse_normalized_score, parse_retention_value, parse_retrieval_kind, parse_rfc3339_timestamp,
-    parse_search_mode, parse_timeline_sort, DurationValue, RetentionValue,
+    parse_search_mode, parse_sha256_hash, parse_timeline_sort, DurationValue, RetentionValue,
 };
 use super::value_validation::{
     normalize_nonempty_filter_value, validate_byte_window, validate_positive_hours,
@@ -761,6 +761,7 @@ pub(super) struct OcrCandidatesArgs {
 #[derive(Debug, Args)]
 pub(super) struct OcrGetArgs {
     /// Raw representation SHA-256 hash.
+    #[arg(value_parser = parse_sha256_hash)]
     pub(super) raw_sha256: String,
 
     #[command(flatten)]
@@ -770,6 +771,7 @@ pub(super) struct OcrGetArgs {
 #[derive(Debug, Args)]
 pub(super) struct OcrClearArgs {
     /// Raw representation SHA-256 hash.
+    #[arg(value_parser = parse_sha256_hash)]
     pub(super) raw_sha256: String,
 
     #[command(flatten)]
