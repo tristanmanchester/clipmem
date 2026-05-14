@@ -17,9 +17,10 @@ use super::help::{
     TIMELINE_AFTER_HELP, WATCH_AFTER_HELP,
 };
 use super::parsing::{
-    parse_bounded_limit, parse_duration_value, parse_item_index, parse_nonnegative_bytes,
-    parse_normalized_score, parse_retention_value, parse_retrieval_kind, parse_rfc3339_timestamp,
-    parse_search_mode, parse_sha256_hash, parse_timeline_sort, DurationValue, RetentionValue,
+    parse_bounded_limit, parse_bundle_id, parse_duration_value, parse_item_index,
+    parse_nonnegative_bytes, parse_normalized_score, parse_retention_value, parse_retrieval_kind,
+    parse_rfc3339_timestamp, parse_search_mode, parse_sha256_hash, parse_timeline_sort,
+    DurationValue, RetentionValue,
 };
 use super::value_validation::{
     normalize_nonempty_filter_value, validate_byte_window, validate_positive_hours,
@@ -889,6 +890,7 @@ pub(super) enum SettingsIgnoreCommand {
 #[derive(Debug, Args)]
 pub(super) struct SettingsIgnoreBundleArgs {
     /// Bundle identifier to add or remove.
+    #[arg(value_parser = parse_bundle_id)]
     pub(super) bundle_id: String,
 
     #[command(flatten)]

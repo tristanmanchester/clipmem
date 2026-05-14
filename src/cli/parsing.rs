@@ -129,6 +129,15 @@ pub(super) fn parse_sha256_hash(value: &str) -> Result<String, LimitParseError> 
     }
 }
 
+pub(super) fn parse_bundle_id(value: &str) -> Result<String, LimitParseError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        Err(LimitParseError("bundle id cannot be empty".to_string()))
+    } else {
+        Ok(trimmed.to_string())
+    }
+}
+
 pub(super) fn parse_search_mode(value: &str) -> Result<SearchMode, LimitParseError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "auto" => Ok(SearchMode::Auto),
@@ -221,8 +230,8 @@ mod tests {
     use crate::db::{RetrievalKind, SearchMode, TimelineSort};
 
     use super::{
-        parse_retrieval_kind, parse_search_mode, parse_sha256_hash, parse_timeline_sort,
-        DurationValue, RetentionValue,
+        parse_bundle_id, parse_retrieval_kind, parse_search_mode, parse_sha256_hash,
+        parse_timeline_sort, DurationValue, RetentionValue,
     };
 
     #[test]
@@ -252,5 +261,14 @@ mod tests {
 
         assert!(parse_sha256_hash("abc123").is_err());
         assert!(parse_sha256_hash(&"g".repeat(64)).is_err());
+    }
+
+    #[test]
+    fn bundle_id_parser_trims_and_rejects_empty_values() {
+        assert_eq!(
+            parse_bundle_id(" Com.Apple.Terminal ").unwrap(),
+            "Com.Apple.Terminal"
+        );
+        assert!(parse_bundle_id("   ").is_err());
     }
 }

@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `settings ignore add/remove` so empty bundle ids are rejected during CLI
+  parsing before opening or creating the archive database.
 - Fixed OCR hash commands so malformed `ocr get` and `ocr clear` hashes are
   rejected during CLI parsing before opening the archive database.
 - Fixed `clipmem app settings set` so invalid preference values are rejected

@@ -181,6 +181,28 @@ fn settings_mutations_support_json_output() -> Result<()> {
 }
 
 #[test]
+fn settings_ignore_rejects_empty_bundle_id_before_opening_database() -> Result<()> {
+    let path = temp_db_path("settings-ignore-empty-bundle-corrupt-db");
+    fs::write(&path, b"not a sqlite database")?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "settings",
+        "ignore",
+        "add",
+        "   ",
+    ]);
+
+    assert_eq!(status_code(&output), 2);
+    assert!(stdout_text(&output).is_empty());
+    assert!(stderr_text(&output).contains("bundle id cannot be empty"));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn forget_command_hard_deletes_snapshot() -> Result<()> {
     let path = temp_db_path("forget-snapshot");
     let ids = seed_database(&path, &[text_snapshot(1, "temporary clipboard text")])?;
