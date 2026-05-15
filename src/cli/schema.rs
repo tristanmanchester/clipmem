@@ -18,9 +18,9 @@ use super::help::{
 };
 use super::parsing::{
     parse_bounded_limit, parse_bundle_id, parse_duration_value, parse_item_index,
-    parse_nonnegative_bytes, parse_normalized_score, parse_retention_value, parse_retrieval_kind,
-    parse_rfc3339_timestamp, parse_search_mode, parse_sha256_hash, parse_timeline_sort,
-    DurationValue, RetentionValue,
+    parse_nonnegative_bytes, parse_normalized_score, parse_preferred_app, parse_retention_value,
+    parse_retrieval_kind, parse_rfc3339_timestamp, parse_search_mode, parse_sha256_hash,
+    parse_timeline_sort, DurationValue, RetentionValue,
 };
 use super::value_validation::{
     normalize_nonempty_filter_value, validate_byte_window, validate_positive_hours,
@@ -562,7 +562,7 @@ pub(super) struct RecallArgs {
     pub(super) prefer_recent: bool,
 
     /// Bias ranking toward clipboard events from the matching app or bundle id.
-    #[arg(long)]
+    #[arg(long, value_parser = parse_preferred_app)]
     pub(super) prefer_app: Option<String>,
 
     #[command(flatten)]

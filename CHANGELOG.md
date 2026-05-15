@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `clipmem recall --prefer-app` so empty preferred-app values are rejected
+  during CLI parsing before opening the archive database.
 - Fixed `settings ignore add/remove` so empty bundle ids are rejected during CLI
   parsing before opening or creating the archive database.
 - Fixed OCR hash commands so malformed `ocr get` and `ocr clear` hashes are

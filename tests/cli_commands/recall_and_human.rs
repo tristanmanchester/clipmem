@@ -589,6 +589,27 @@ fn recall_prefer_app_boosts_matching_candidates() -> Result<()> {
 }
 
 #[test]
+fn recall_rejects_empty_prefer_app_before_opening_database() -> Result<()> {
+    let path = temp_db_path("recall-empty-prefer-app-corrupt-db");
+    fs::write(&path, b"not a sqlite database")?;
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "recall",
+        "--prefer-app",
+        "",
+    ]);
+
+    assert_eq!(status_code(&output), 2);
+    assert!(stdout_text(&output).is_empty());
+    assert!(stderr_text(&output).contains("preferred app cannot be empty"));
+
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn recall_markdown_quotes_and_expands_best_text() -> Result<()> {
     let path = temp_db_path("recall-md-quote");
     let long_text = "git status --short && git log --oneline && cargo test --package clipmem";
