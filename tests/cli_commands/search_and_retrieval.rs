@@ -168,6 +168,35 @@ fn search_rejects_invalid_cursor_before_opening_database() -> Result<()> {
 }
 
 #[test]
+fn export_rejects_empty_uti_before_opening_database() -> Result<()> {
+    let path = temp_db_path("export-empty-uti-corrupt-db");
+    fs::write(&path, b"not a sqlite database")?;
+    let output_path = temp_artifact_path("export-empty-uti", ".txt");
+
+    let output = run_cli(&[
+        "--db",
+        path.to_str().expect("db path should be UTF-8"),
+        "export",
+        "1",
+        "--item",
+        "0",
+        "--uti",
+        "",
+        "--out",
+        output_path.to_str().expect("export path should be UTF-8"),
+    ]);
+
+    assert_eq!(status_code(&output), 2);
+    assert!(stdout_text(&output).is_empty());
+    assert!(stderr_text(&output).contains("UTI cannot be empty"));
+    assert!(!output_path.exists());
+
+    cleanup_temp_artifact(&output_path);
+    cleanup_db(&path);
+    Ok(())
+}
+
+#[test]
 fn db_error_exit_with_code_5_and_write_only_stderr() -> Result<()> {
     let dir = temp_test_dir("db-error-dir");
     fs::create_dir_all(&dir)?;

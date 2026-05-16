@@ -11,6 +11,8 @@ versioning where practical.
 
 ### Fixed
 
+- Fixed `clipmem export --uti` so empty representation type values are rejected
+  during CLI parsing before opening the archive database.
 - Fixed `clipmem recall --prefer-app` so empty preferred-app values are rejected
   during CLI parsing before opening the archive database.
 - Fixed `settings ignore add/remove` so empty bundle ids are rejected during CLI

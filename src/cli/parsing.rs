@@ -147,6 +147,15 @@ pub(super) fn parse_preferred_app(value: &str) -> Result<String, LimitParseError
     }
 }
 
+pub(super) fn parse_representation_uti(value: &str) -> Result<String, LimitParseError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        Err(LimitParseError("UTI cannot be empty".to_string()))
+    } else {
+        Ok(trimmed.to_string())
+    }
+}
+
 pub(super) fn parse_search_mode(value: &str) -> Result<SearchMode, LimitParseError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "auto" => Ok(SearchMode::Auto),
@@ -239,8 +248,8 @@ mod tests {
     use crate::db::{RetrievalKind, SearchMode, TimelineSort};
 
     use super::{
-        parse_bundle_id, parse_retrieval_kind, parse_search_mode, parse_sha256_hash,
-        parse_timeline_sort, DurationValue, RetentionValue,
+        parse_bundle_id, parse_representation_uti, parse_retrieval_kind, parse_search_mode,
+        parse_sha256_hash, parse_timeline_sort, DurationValue, RetentionValue,
     };
 
     #[test]
@@ -279,5 +288,14 @@ mod tests {
             "Com.Apple.Terminal"
         );
         assert!(parse_bundle_id("   ").is_err());
+    }
+
+    #[test]
+    fn representation_uti_parser_trims_and_rejects_empty_values() {
+        assert_eq!(
+            parse_representation_uti(" public.utf8-plain-text ").unwrap(),
+            "public.utf8-plain-text"
+        );
+        assert!(parse_representation_uti("   ").is_err());
     }
 }
