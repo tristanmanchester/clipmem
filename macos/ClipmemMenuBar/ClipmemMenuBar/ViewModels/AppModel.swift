@@ -345,6 +345,25 @@ final class AppModel {
         }
     }
 
+    func copySnapshotToPasteboard(snapshotID: Int) async {
+        do {
+            _ = try await client.restore(snapshotID: snapshotID)
+            pasteboardMonitor?.markCurrentChangeHandled()
+            lastError = nil
+            showActionMessage("Copied to clipboard")
+            await refreshRecentPreview()
+        } catch {
+            lastError = UserError(error)
+        }
+    }
+
+    func copyPlainTextToPasteboard(_ text: String) {
+        PasteboardActions.copyPlainText(text)
+        pasteboardMonitor?.markCurrentChangeHandled()
+        lastError = nil
+        showActionMessage("Copied to clipboard")
+    }
+
     @discardableResult
     func forget(_ item: ClipmemItem) async -> Bool {
         do {

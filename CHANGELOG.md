@@ -15,6 +15,9 @@ versioning where practical.
   during CLI parsing before opening the archive database.
 - Fixed `clipmem recall --prefer-app` so empty preferred-app values are rejected
   during CLI parsing before opening the archive database.
+- Fixed the macOS History detail pane so image snapshots show an inline
+  preview, copy restores the saved clipboard formats, and app-initiated copies
+  preserve History browsing context.
 - Fixed `settings ignore add/remove` so empty bundle ids are rejected during CLI
   parsing before opening or creating the archive database.
 - Fixed OCR hash commands so malformed `ocr get` and `ocr clear` hashes are

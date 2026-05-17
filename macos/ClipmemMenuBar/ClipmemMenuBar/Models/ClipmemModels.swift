@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 enum SnapshotKind: String, Decodable, Hashable, Sendable {
     case empty
@@ -292,6 +293,42 @@ struct SnapshotDetails: Decodable, Equatable, Sendable {
     var lastFrontmostAppBundleId: String?
     var recentEvents: [CaptureEvent]
     var items: [ClipboardItemDetail]
+
+    var imagePreviewRepresentation: ImagePreviewRepresentation? {
+        for item in items {
+            if let representation = item.representations.first(where: { $0.isPreviewableImage }) {
+                return ImagePreviewRepresentation(
+                    itemIndex: item.itemIndex,
+                    uti: representation.uti,
+                    fileExtension: representation.previewFileExtension
+                )
+            }
+        }
+        return nil
+    }
+
+    var copyableDetailText: String? {
+        guard snapshotKind != .image else { return nil }
+        return [bestText, previewText, textSummary, ocrText]
+            .compactMap { $0 }
+            .first { $0.isEmpty == false }
+    }
+
+    var shouldHideImagePlaceholderText: Bool {
+        guard snapshotKind == .image else { return false }
+        guard ocrText?.isEmpty != false else { return false }
+        let text = [bestText, previewText, textSummary]
+            .compactMap { $0 }
+            .first { $0.isEmpty == false }?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return text.hasPrefix("[image")
+    }
+}
+
+struct ImagePreviewRepresentation: Equatable, Sendable {
+    var itemIndex: Int
+    var uti: String
+    var fileExtension: String
 }
 
 struct CaptureEvent: Decodable, Equatable, Identifiable, Sendable {
@@ -325,6 +362,29 @@ struct ClipboardRepresentation: Decodable, Equatable, Identifiable, Sendable {
     var textValue: String?
 
     var id: String { uti }
+
+    var isPreviewableImage: Bool {
+        if kind == .image {
+            return true
+        }
+        return UTType(uti)?.conforms(to: .image) == true
+    }
+
+    var previewFileExtension: String {
+        if let preferred = UTType(uti)?.preferredFilenameExtension {
+            return preferred
+        }
+        switch uti {
+        case "public.jpeg", "public.jpg":
+            return "jpg"
+        case "public.tiff":
+            return "tiff"
+        case "com.compuserve.gif":
+            return "gif"
+        default:
+            return "png"
+        }
+    }
 }
 
 struct RestoreOutput: Decodable, Equatable, Sendable {

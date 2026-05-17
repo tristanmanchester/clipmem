@@ -165,7 +165,12 @@ struct HistoryWindowView: View {
     }
 
     private var detailColumn: some View {
-        SnapshotDetailView(detail: history.selectedDetail, fallback: history.selectedItem, isLoading: history.isLoadingDetail)
+        SnapshotDetailView(
+            detail: history.selectedDetail,
+            fallback: history.selectedItem,
+            appModel: appModel,
+            isLoading: history.isLoadingDetail
+        )
             .navigationTitle(displayMode.title)
             .navigationSplitViewColumnWidth(min: 360, ideal: 580)
     }

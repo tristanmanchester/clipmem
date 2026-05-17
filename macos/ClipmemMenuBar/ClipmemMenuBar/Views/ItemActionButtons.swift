@@ -20,8 +20,7 @@ struct ItemActionButtons: View {
 
             Button("Copy Plain Text", systemImage: "doc.on.doc") {
                 let text = detail?.bestText ?? item?.bestText ?? ""
-                PasteboardActions.copyPlainText(text)
-                appModel.actionMessage = "Copied to clipboard"
+                appModel.copyPlainTextToPasteboard(text)
             }
             .disabled((detail?.bestText ?? item?.bestText ?? "").isEmpty)
             .keyboardShortcut("c", modifiers: [.command, .shift])

@@ -137,6 +137,72 @@ struct HistoryModelTests {
         #expect(detailRequests == [7])
     }
 
+    @Test
+    func imagePreviewRepresentationPrefersImageRepresentations() {
+        let detail = Self.detail(
+            snapshotID: 7,
+            snapshotKind: .image,
+            bestText: "[image · 148071 bytes · public.png]",
+            items: [
+                Self.clipboardItem(
+                    itemIndex: 0,
+                    representations: [
+                        Self.representation(uti: "public.utf8-plain-text", kind: .plainText),
+                        Self.representation(uti: "public.png", kind: .image),
+                    ]
+                ),
+            ]
+        )
+
+        #expect(detail.imagePreviewRepresentation == ImagePreviewRepresentation(
+            itemIndex: 0,
+            uti: "public.png",
+            fileExtension: "png"
+        ))
+    }
+
+    @Test
+    func imagePlaceholderTextIsHiddenOnlyWhenNoOCRTextExists() {
+        let placeholderOnly = Self.detail(
+            snapshotID: 7,
+            snapshotKind: .image,
+            bestText: "[image · 148071 bytes · public.png]"
+        )
+        let withOCR = Self.detail(
+            snapshotID: 8,
+            snapshotKind: .image,
+            bestText: "[image · 148071 bytes · public.png]",
+            ocrText: "visible text from image"
+        )
+        let textSnapshot = Self.detail(
+            snapshotID: 9,
+            snapshotKind: .plainText,
+            bestText: "[image · not actually an image]"
+        )
+
+        #expect(placeholderOnly.shouldHideImagePlaceholderText)
+        #expect(!withOCR.shouldHideImagePlaceholderText)
+        #expect(!textSnapshot.shouldHideImagePlaceholderText)
+    }
+
+    @Test
+    func imageSnapshotsDoNotExposePlaceholderTextAsCopyableDetailText() {
+        let imageDetail = Self.detail(
+            snapshotID: 7,
+            snapshotKind: .image,
+            bestText: "[image · 148071 bytes · public.png]",
+            ocrText: "visible text from image"
+        )
+        let textDetail = Self.detail(
+            snapshotID: 8,
+            snapshotKind: .plainText,
+            bestText: "copy this text"
+        )
+
+        #expect(imageDetail.copyableDetailText == nil)
+        #expect(textDetail.copyableDetailText == "copy this text")
+    }
+
     private static func item(snapshotID: Int) -> ClipmemItem {
         ClipmemItem(
             snapshotId: snapshotID,
@@ -170,12 +236,18 @@ struct HistoryModelTests {
         )
     }
 
-    private static func detail(snapshotID: Int) -> SnapshotDetails {
+    private static func detail(
+        snapshotID: Int,
+        snapshotKind: SnapshotKind = .plainText,
+        bestText: String? = nil,
+        ocrText: String? = nil,
+        items: [ClipboardItemDetail] = []
+    ) -> SnapshotDetails {
         SnapshotDetails(
             snapshotId: snapshotID,
             sha256: "sha-\(snapshotID)",
-            snapshotKind: .plainText,
-            bestText: "Snapshot \(snapshotID)",
+            snapshotKind: snapshotKind,
+            bestText: bestText ?? "Snapshot \(snapshotID)",
             bestTextUti: nil,
             textFragments: nil,
             urls: [],
@@ -183,7 +255,7 @@ struct HistoryModelTests {
             htmlText: nil,
             rtfText: nil,
             textSummary: nil,
-            ocrText: nil,
+            ocrText: ocrText,
             ocrStatus: nil,
             previewText: nil,
             searchText: nil,
@@ -196,7 +268,36 @@ struct HistoryModelTests {
             lastFrontmostAppName: nil,
             lastFrontmostAppBundleId: nil,
             recentEvents: [],
-            items: []
+            items: items
+        )
+    }
+
+    private static func clipboardItem(
+        itemIndex: Int,
+        representations: [ClipboardRepresentation]
+    ) -> ClipboardItemDetail {
+        ClipboardItemDetail(
+            itemIndex: itemIndex,
+            primaryKind: representations.first?.kind ?? .empty,
+            primaryUti: representations.first?.uti,
+            previewText: nil,
+            searchText: nil,
+            totalBytes: representations.reduce(0) { $0 + $1.byteLen },
+            representations: representations
+        )
+    }
+
+    private static func representation(
+        uti: String,
+        kind: ClipboardRepresentationKind
+    ) -> ClipboardRepresentation {
+        ClipboardRepresentation(
+            uti: uti,
+            kind: kind,
+            isText: kind == .plainText,
+            byteLen: 42,
+            rawSha256: nil,
+            textValue: nil
         )
     }
 }

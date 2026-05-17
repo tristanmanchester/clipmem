@@ -1,12 +1,15 @@
+import AppKit
 import SwiftUI
 
 struct SnapshotDetailView: View {
     let detail: SnapshotDetails?
     let fallback: ClipmemItem?
+    let appModel: AppModel
     var isLoading: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visibleSections = 0
+    @State private var imagePreviewState: ImagePreviewState = .notAvailable
 
     var body: some View {
         ScrollView {
@@ -55,8 +58,13 @@ struct SnapshotDetailView: View {
         .onChange(of: detail?.snapshotId) {
             revealSections()
         }
-        .task {
+        .task(id: detail?.snapshotId) {
             revealSections()
+            await loadImagePreview()
+        }
+        .onDisappear {
+            removeLoadedPreview()
+            imagePreviewState = .notAvailable
         }
     }
 
@@ -83,17 +91,21 @@ struct SnapshotDetailView: View {
                 Text("Content")
                     .font(DesignType.sectionHeader)
                 Spacer()
-                if let text = bestText(from: detail), !text.isEmpty {
-                    Button("Copy", systemImage: "doc.on.doc") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(text, forType: .string)
+                if canCopy(detail) {
+                    Button(copyButtonTitle(for: detail), systemImage: "doc.on.doc") {
+                        copy(detail)
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .foregroundStyle(.secondary)
+                    .help(copyButtonHelp(for: detail))
                 }
             }
-            if let text = bestText(from: detail) {
+
+            if detail.imagePreviewRepresentation != nil {
+                imagePreviewView
+            }
+
+            if let text = contentText(from: detail) {
                 CommandClickableMarkdownText(
                     rendered: MarkdownTextRenderer.renderedText(text, style: .detail),
                     lineLimit: nil,
@@ -112,10 +124,126 @@ struct SnapshotDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var imagePreviewView: some View {
+        switch imagePreviewState {
+        case .notAvailable:
+            EmptyView()
+        case .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 180)
+                .background(Color(.textBackgroundColor), in: .rect(cornerRadius: DesignRadius.md))
+        case .loaded(_, _, let image):
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: 380)
+                .padding(Spacing.sm)
+                .background(Color(.textBackgroundColor), in: .rect(cornerRadius: DesignRadius.md))
+                .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
+        case .failed(_, let message):
+            ContentUnavailableView("Preview Unavailable", systemImage: "photo", description: Text(message))
+                .frame(maxWidth: .infinity, minHeight: 160)
+                .background(Color(.textBackgroundColor), in: .rect(cornerRadius: DesignRadius.md))
+        }
+    }
+
+    private func contentText(from detail: SnapshotDetails) -> String? {
+        if detail.snapshotKind == .image, let ocrText = detail.ocrText, ocrText.isEmpty == false {
+            return ocrText
+        }
+        if detail.shouldHideImagePlaceholderText, detail.imagePreviewRepresentation != nil {
+            return nil
+        }
+        return bestText(from: detail)
+    }
+
     private func bestText(from detail: SnapshotDetails) -> String? {
         [detail.bestText, detail.previewText, detail.textSummary, detail.ocrText]
             .compactMap { $0 }
             .first(where: { $0.isEmpty == false })
+    }
+
+    private func canCopy(_ detail: SnapshotDetails) -> Bool {
+        if detail.copyableDetailText?.isEmpty == false {
+            return true
+        }
+        return detail.itemCount > 0
+    }
+
+    private func copyButtonTitle(for detail: SnapshotDetails) -> String {
+        if detail.copyableDetailText?.isEmpty == false {
+            return "Copy"
+        }
+        if detail.snapshotKind == .image {
+            return "Copy Image"
+        }
+        return "Copy Snapshot"
+    }
+
+    private func copyButtonHelp(for detail: SnapshotDetails) -> String {
+        if detail.copyableDetailText?.isEmpty == false {
+            return "Copy extracted text"
+        }
+        return "Copy this saved clipboard item with its original formats"
+    }
+
+    private func copy(_ detail: SnapshotDetails) {
+        if let text = detail.copyableDetailText {
+            appModel.copyPlainTextToPasteboard(text)
+            return
+        }
+        Task { await appModel.copySnapshotToPasteboard(snapshotID: detail.snapshotId) }
+    }
+
+    private func loadImagePreview() async {
+        guard let detail, let representation = detail.imagePreviewRepresentation else {
+            removeLoadedPreview()
+            imagePreviewState = .notAvailable
+            return
+        }
+
+        let snapshotID = detail.snapshotId
+        removeLoadedPreview()
+        imagePreviewState = .loading(snapshotID: snapshotID)
+
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("clipmem-preview-\(snapshotID)-\(representation.itemIndex)-\(UUID().uuidString)")
+            .appendingPathExtension(representation.fileExtension)
+
+        do {
+            _ = try await appModel.client.export(
+                snapshotID: snapshotID,
+                itemIndex: representation.itemIndex,
+                uti: representation.uti,
+                destination: destination.path,
+                force: true
+            )
+            guard self.detail?.snapshotId == snapshotID else {
+                try? FileManager.default.removeItem(at: destination)
+                return
+            }
+            guard let image = NSImage(contentsOf: destination) else {
+                try? FileManager.default.removeItem(at: destination)
+                imagePreviewState = .failed(snapshotID: snapshotID, message: "The saved image data could not be decoded.")
+                return
+            }
+            imagePreviewState = .loaded(snapshotID: snapshotID, url: destination, image: image)
+        } catch is CancellationError {
+            try? FileManager.default.removeItem(at: destination)
+        } catch {
+            guard self.detail?.snapshotId == snapshotID else {
+                try? FileManager.default.removeItem(at: destination)
+                return
+            }
+            imagePreviewState = .failed(snapshotID: snapshotID, message: error.localizedDescription)
+        }
+    }
+
+    private func removeLoadedPreview() {
+        if case .loaded(_, let url, _) = imagePreviewState {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     private func metadataSection(_ detail: SnapshotDetails) -> some View {
@@ -211,4 +339,11 @@ struct SnapshotDetailView: View {
         }
         .redacted(reason: .placeholder)
     }
+}
+
+private enum ImagePreviewState {
+    case notAvailable
+    case loading(snapshotID: Int)
+    case loaded(snapshotID: Int, url: URL, image: NSImage)
+    case failed(snapshotID: Int, message: String)
 }
