@@ -130,9 +130,9 @@ xcodebuild -project macos/ClipmemMenuBar/ClipmemMenuBar.xcodeproj \
 
 - Global hotkey support is Option-Shift-V with a reset-to-default
   preference. Arbitrary hotkey recording isn't implemented yet.
-- Image representations can be exported for preview and action
-  workflows, but PDFs and opaque binaries are shown through metadata
-  and export actions rather than inline rendering.
+- Image snapshots show an inline preview in the History detail pane.
+  PDFs and opaque binaries are shown through metadata and export
+  actions rather than inline rendering.
 - The app restores clipboard snapshots but doesn't auto-paste into
   the previous application.
 - Search is lexical and rule-based. The UI intentionally doesn't
