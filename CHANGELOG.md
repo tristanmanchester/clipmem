@@ -9,6 +9,11 @@ versioning where practical.
 
 ## Unreleased
 
+### Changed
+
+- Expanded the README with a first-time user walkthrough, concrete clipboard
+  recovery examples, everyday command map, OCR flow, and privacy summary.
+
 ### Fixed
 
 - Fixed `clipmem export --uti` so empty representation type values are rejected
