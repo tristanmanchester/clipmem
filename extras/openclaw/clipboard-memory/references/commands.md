@@ -263,7 +263,7 @@ clipmem ocr clear <raw-sha256> [--format json]
 clipmem ocr run [--limit N] [--snapshot ID] [--retry-failed] [--format json]
 ```
 
-`forget` is a hard delete. It removes the snapshot row, all child items/representations, and all capture events for that snapshot id via foreign-key cascades.
+`forget` is a hard delete. It removes the snapshot row, all child items/representations, and all capture events for that snapshot id via foreign-key cascades. OCR results with no remaining representation referencing their image hash are also removed.
 
 `purge` computes age from `snapshot_stats.last_observed_at`, not `snapshots.created_at`. Duration grammar is a single integer plus one unit: `Nd`, `Nh`, or `Nm`.
 
