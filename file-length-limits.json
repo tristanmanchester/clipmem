@@ -10,10 +10,12 @@
     ]
   },
   "overrides": {
-    "macos/ClipmemMenuBar/ClipmemMenuBar/ViewModels/AppModel.swift": 896,
-    "src/cli/schema.rs": 1041,
-    "src/cli/tests.rs": 982,
+    "macos/ClipmemMenuBar/ClipmemMenuBar/ViewModels/AppModel.swift": 912,
+    "src/cli/schema.rs": 1045,
+    "src/cli/tests.rs": 1026,
     "src/db/impls.rs": 831,
-    "tests/cli_commands/search_and_retrieval.rs": 803
+    "src/db/tests/filters_and_migrations.rs": 866,
+    "tests/cli_commands/pagination_and_exports.rs": 821,
+    "tests/cli_commands/search_and_retrieval.rs": 878
   }
 }
