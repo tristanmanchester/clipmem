@@ -78,6 +78,23 @@ fn storage_image_candidates(db_path: &Path, args: &StorageImageCandidatesArgs) -
     }
 }
 
+fn render_image_candidates_text(candidates: &[ImageOptimizationCandidateSummary]) -> String {
+    if candidates.is_empty() {
+        return "image candidates=0\n".to_string();
+    }
+    let mut out = format!("image candidates={}\n", candidates.len());
+    for candidate in candidates {
+        out.push_str(&format!(
+            "snapshot={} item={} uti={} bytes={}\n",
+            candidate.snapshot_id(),
+            candidate.item_index(),
+            candidate.uti(),
+            candidate.byte_len()
+        ));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::should_notify_after_image_optimization;
@@ -118,21 +135,4 @@ mod tests {
             false, 0, false
         )));
     }
-}
-
-fn render_image_candidates_text(candidates: &[ImageOptimizationCandidateSummary]) -> String {
-    if candidates.is_empty() {
-        return "image candidates=0\n".to_string();
-    }
-    let mut out = format!("image candidates={}\n", candidates.len());
-    for candidate in candidates {
-        out.push_str(&format!(
-            "snapshot={} item={} uti={} bytes={}\n",
-            candidate.snapshot_id(),
-            candidate.item_index(),
-            candidate.uti(),
-            candidate.byte_len()
-        ));
-    }
-    out
 }

@@ -464,18 +464,6 @@ fn nonempty_option(value: Option<String>) -> Option<String> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::render_agent_retention;
-
-    #[test]
-    fn agent_retention_uses_compact_duration_format() {
-        assert_eq!(render_agent_retention(Some(1_800)), "30m");
-        assert_eq!(render_agent_retention(Some(7_200)), "2h");
-        assert_eq!(render_agent_retention(None), "forever");
-    }
-}
-
 fn build_recent_activity(db: &Database) -> Result<AgentRecentActivitySummary> {
     let last_24h = activity_window(db, 24)?;
     let last_7d = activity_window(db, 24 * 7)?;
@@ -626,4 +614,16 @@ fn render_agent_context_text(context: &AgentContextOutput) -> String {
         context.capabilities.action_parity_doc
     ));
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_agent_retention;
+
+    #[test]
+    fn agent_retention_uses_compact_duration_format() {
+        assert_eq!(render_agent_retention(Some(1_800)), "30m");
+        assert_eq!(render_agent_retention(Some(7_200)), "2h");
+        assert_eq!(render_agent_retention(None), "forever");
+    }
 }

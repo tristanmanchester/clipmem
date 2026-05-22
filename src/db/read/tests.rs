@@ -219,7 +219,7 @@ pub(in crate::db) fn file_path_literal_fast_path_includes_ocr_results() -> Resul
     assert_eq!(results.hits().len(), 2);
     assert!(results.hits().iter().any(|hit| {
         hit.snapshot_id() == image_stored.snapshot_id()
-            && hit.matched_fields() == &["ocr_text".to_string()]
+            && hit.matched_fields() == ["ocr_text".to_string()]
     }));
     Ok(())
 }
