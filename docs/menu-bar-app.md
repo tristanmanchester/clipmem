@@ -45,8 +45,8 @@ When the app launches for the first time, it:
 The app uses explicit SwiftUI scenes:
 
 - **MenuBarExtra** — recent items, quick recall, settings, and quit.
-- **History window** — full browsing surface with sidebar modes,
-  filters, result list, detail view, and inspector actions.
+- **History window** — searchable browser with result scope picker,
+  filters, result list, and recovery-first detail pane.
 - **Quick Recall window** — keyboard-first recall, search, recent,
   and timeline access.
 - **Settings** — service controls, binary path override, database path,
